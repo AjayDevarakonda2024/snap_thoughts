@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Snap Thoughts</string>
+    <string name="title_activity_main">Snap Thoughts</string>
+    <string name="package_name">snap.thoughts.app</string>
+    <string name="custom_url_scheme">snap.thoughts.app</string>
+</resources>
