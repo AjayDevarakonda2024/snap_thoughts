@@ -229,7 +229,7 @@ export default function Page() {
     <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-center">
-        SnapThoughts
+        HoneyThoughts
       </h1>
 
       {loading ? (
