@@ -273,7 +273,7 @@ export default function Page() {
           )}
 
           {/* Feed with animation */}
-          <div className="w-full max-w-sm space-y-6">
+          <div className="w-full max-w-sm space-y-6 pb-28">
             <AnimatePresence initial={false}>
               {feed.map((t) => (
                 <motion.div
