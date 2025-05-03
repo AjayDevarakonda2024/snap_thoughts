@@ -2,18 +2,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getDatabase } from "firebase/database";
-import {
-    getFirestore,
-    collection,
-    addDoc,
-    onSnapshot,
-    updateDoc,
-    doc,
-    deleteDoc,
-    getDoc,
-    setDoc,
-    Timestamp,
-  } from "firebase/firestore";
 
 // Your Firebase config here (from Firebase Console)
 const firebaseConfig = {
