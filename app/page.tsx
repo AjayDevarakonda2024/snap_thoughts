@@ -229,7 +229,7 @@ export default function Page() {
     <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-center">
-        HoneyThoughts
+        SnapThoughts
       </h1>
 
       {loading ? (
@@ -255,100 +255,114 @@ export default function Page() {
 
           {/* Nickname Input */}
           {!user.nickname && (
-            <div className="max-w-sm mb-6 w-full">
+            <div className="w-full max-w-sm bg-white/40 backdrop-blur-md rounded-2xl p-6 shadow-xl mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Choose a Nickname</h3>
+              <p className="text-sm text-gray-600 mb-4">This will be shown with your posts.</p>
               <input
                 type="text"
-                placeholder="Enter a nickname"
-                className="w-full p-3 rounded-lg shadow border border-gray-300 bg-white focus:outline-none"
+                placeholder="e.g. ThoughtBee"
+                className="w-full p-3 rounded-xl border border-gray-300 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
               />
               <button
                 onClick={saveNickname}
-                className="mt-2 w-full px-6 py-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white rounded-full hover:brightness-110 shadow-md transition-all"
+                className="mt-4 w-full px-6 py-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold rounded-full shadow-md hover:brightness-110 transition-all"
               >
                 Save Nickname
               </button>
             </div>
           )}
 
+
           {/* Feed with animation */}
           <div className="w-full max-w-sm space-y-6 pb-28">
             <AnimatePresence initial={false}>
               {feed.map((t) => (
                 <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  className="bg-white/60 backdrop-blur-lg p-4 sm:p-6 rounded-2xl shadow-xl flex items-start space-x-4 hover:shadow-2xl transition duration-200"
-                >
-                    
-
-                  <div className="flex-1">
-                    {/* Nickname as Header */}
-                    <p className="text-xs sm:text-sm text-gray-500 font-semibold mb-1">
-                      {t.nickname || "Anonymous"}
-                    </p>
-                    <p className="text-gray-900 text-base sm:text-lg">{t.text}</p>
-                    <div className="flex items-center space-x-4 mt-3">
-                      <button
-                        onClick={() => likeThought(t.id, t.likedBy, t.likes)}
-                        className={`text-sm font-medium ${
-                          t.likedBy.includes(user.uid)
-                            ? "text-red-500"
-                            : "text-gray-600"
-                        } hover:text-pink-600 transition`}
-                      >
-                        ❤️ {t.likes}
-                      </button>
-                      {t.userId === user?.uid && (
-                        <button
-                          onClick={() => deleteThought(t.id)}
-                          className="text-red-500 hover:text-red-600 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
+  key={t.id}
+  initial={{ opacity: 0, y: 30 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -20 }}
+  transition={{ duration: 0.4 }}
+  className="bg-white/70 backdrop-blur-lg p-5 sm:p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300"
+>
+  <div className="space-y-2">
+    <p className="text-sm text-gray-700 font-semibold tracking-wide">
+      🧠 {t.nickname || "Anonymous"}
+    </p>
+    <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
+      {t.text}
+    </p>
+    <div className="flex items-center justify-between pt-2">
+      <button
+        onClick={() => likeThought(t.id, t.likedBy, t.likes)}
+        className={`text-sm font-medium flex items-center gap-1 transition ${
+          t.likedBy.includes(user.uid)
+            ? "text-yellow-500"
+            : "text-gray-500 hover:text-pink-500"
+        }`}
+      >
+        🍯 {t.likes}
+      </button>
+      {t.userId === user?.uid && (
+        <button
+          onClick={() => deleteThought(t.id)}
+          className="text-sm font-medium text-red-400 hover:text-red-600 transition"
+        >
+          🗑 Delete
+        </button>
+      )}
+    </div>
+  </div>
+</motion.div>
+              
               ))}
             </AnimatePresence>
           </div>
 
           {/* Floating Thought Input at Bottom */}
-          <div className="fixed bottom-0 left-0 right-0 px-4 py-3 bg-white/90 backdrop-blur-md border-t border-gray-300">
-            <div className="flex flex-col sm:flex-row items-center gap-3 max-w-sm mx-auto">
-              <textarea
-                placeholder="What's on your mind?"
-                className="flex-1 h-20 p-3 rounded-lg shadow border border-gray-300 bg-white focus:outline-none resize-none"
-                value={thought}
-                onChange={(e) => setThought(e.target.value)}
-                maxLength={100}
-              />
-              <button
-                onClick={async () => {
-                  await postThought();
-                  window.scrollTo({ top: 0, behavior: "smooth" }); // optional
-                }}
-                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:brightness-110 shadow-md w-full sm:w-auto"
-              >
-                Post a Thought
-              </button>
-            </div>
-          </div>
+          <div className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-t">
+  <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto w-full">
+    <textarea
+      placeholder="✨ Share something sweet..."
+      className="w-full sm:flex-1 h-20 p-3 rounded-xl shadow-sm border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none transition"
+      value={thought}
+      onChange={(e) => setThought(e.target.value)}
+      maxLength={100}
+    />
+    <button
+      onClick={async () => {
+        await postThought();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
+      className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold hover:brightness-110 shadow-md w-full sm:w-auto transition-all"
+    >
+      📝 Post
+    </button>
+  </div>
+</div>
+
+
         </>
       ) : (
-        <div className="w-full max-w-sm">
-          <button
-            onClick={login}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-md hover:brightness-110 transition-all"
-          >
-            Login with Google
-          </button>
+        <div className="w-full max-w-sm bg-white/30 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-center">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to HoneyThoughts 🍯</h2>
+            <p className="text-sm text-gray-600 mb-6">Share your sweet thoughts anonymously.</p>
+            <button
+              onClick={login}
+              className="w-full px-6 py-3 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:scale-[1.02] hover:brightness-110 transition-all font-semibold text-base"
+            >
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              Continue with Google
+            </button>
+
         </div>
+
       )}
     </div>
   );
