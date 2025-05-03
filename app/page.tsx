@@ -310,7 +310,7 @@ export default function Page() {
           onClick={() => deleteThought(t.id)}
           className="text-sm font-medium text-red-400 hover:text-red-600 transition"
         >
-          🗑 Delete
+         Delete
         </button>
       )}
     </div>
@@ -323,25 +323,25 @@ export default function Page() {
 
           {/* Floating Thought Input at Bottom */}
           <div className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-t">
-  <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto w-full">
-    <textarea
-      placeholder="✨ Share something sweet..."
-      className="w-full sm:flex-1 h-20 p-3 rounded-xl shadow-sm border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none transition"
-      value={thought}
-      onChange={(e) => setThought(e.target.value)}
-      maxLength={100}
-    />
-    <button
-      onClick={async () => {
-        await postThought();
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }}
-      className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold hover:brightness-110 shadow-md w-full sm:w-auto transition-all"
-    >
-      📝 Post
-    </button>
-  </div>
-</div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto w-full">
+              <textarea
+                placeholder="✨ Share something sweet..."
+                className="w-full sm:flex-1 h-20 p-3 rounded-xl shadow-sm border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none transition"
+                value={thought}
+                onChange={(e) => setThought(e.target.value)}
+                maxLength={100}
+              />
+              <button
+                onClick={async () => {
+                  await postThought();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold hover:brightness-110 shadow-md w-full sm:w-auto transition-all"
+              >
+                📝 Post
+              </button>
+            </div>
+          </div>
 
 
         </>
