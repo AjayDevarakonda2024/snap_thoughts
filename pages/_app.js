@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { messaging } from "../lib/firebase";
+import { messaging } from ".../lib/firebase.js";
 
 function MyApp({ Component, pageProps }) {
   useEffect(() => {
