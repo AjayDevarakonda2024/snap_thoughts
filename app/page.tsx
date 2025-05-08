@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
-import { initializeApp } from "firebase/app";
+import { initializeApp, FirebaseApp } from "firebase/app";
 import {
   getFirestore,
   collection,
@@ -21,6 +21,7 @@ import {
   writeBatch,
   getDocs,
   where,
+  Firestore,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -28,6 +29,7 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
+  Auth,
 } from "firebase/auth";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -36,7 +38,6 @@ import debounce from "lodash.debounce";
 import Image from "next/image";
 
 // --- Firebase config ---
-// Ensure these environment variables are set in .env.local
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -46,10 +47,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
 
 // --- Types ---
 interface User {
@@ -81,13 +78,39 @@ export default function Page() {
   const [nickname, setNickname] = useState<string>("");
   const [page, setPage] = useState(1);
   const thoughtsPerPage = 20;
+  const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
+  const [db, setDb] = useState<Firestore | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
+
+  // Initialize Firebase on client side
+  useEffect(() => {
+    try {
+      const app = initializeApp(firebaseConfig);
+      const firestore = getFirestore(app);
+      const authInstance = getAuth(app);
+      setFirebaseApp(app);
+      setDb(firestore);
+      setAuth(authInstance);
+    } catch (error) {
+      console.error("Failed to initialize Firebase:", error);
+      toast.error("Failed to initialize Firebase. Please try again later.");
+    }
+  }, []);
 
   // Login with Google
   const login = async () => {
+    if (!auth) {
+      toast.error("Authentication service is not initialized.");
+      return;
+    }
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
+      if (!db) {
+        toast.error("Database service is not initialized.");
+        return;
+      }
       const userRef = doc(db, "users", currentUser.uid);
       const userDoc = await getDoc(userRef);
 
@@ -110,6 +133,10 @@ export default function Page() {
 
   // Logout
   const logout = async () => {
+    if (!auth) {
+      toast.error("Authentication service is not initialized.");
+      return;
+    }
     try {
       await signOut(auth);
       setUser(null);
@@ -132,6 +159,10 @@ export default function Page() {
     }
     if (!user) {
       toast.error("Please login to set a nickname.");
+      return;
+    }
+    if (!db) {
+      toast.error("Database service is not initialized.");
       return;
     }
 
@@ -173,6 +204,11 @@ export default function Page() {
       setIsPosting(false);
       return;
     }
+    if (!db) {
+      toast.error("Database service is not initialized.");
+      setIsPosting(false);
+      return;
+    }
 
     try {
       await addDoc(collection(db, "thoughts"), {
@@ -200,6 +236,10 @@ export default function Page() {
       toast.error("Please login to like a thought.");
       return;
     }
+    if (!db) {
+      toast.error("Database service is not initialized.");
+      return;
+    }
     const thoughtRef = doc(db, "thoughts", id);
 
     const alreadyLiked = likedBy.includes(user.uid);
@@ -221,6 +261,10 @@ export default function Page() {
 
   // Delete a thought
   const deleteThought = async (id: string) => {
+    if (!db) {
+      toast.error("Database service is not initialized.");
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this thought?")) {
       try {
         const thoughtRef = doc(db, "thoughts", id);
@@ -235,9 +279,10 @@ export default function Page() {
 
   // Listen for auth changes
   useEffect(() => {
+    if (!auth) return;
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
-      if (currentUser) {
+      if (currentUser && db) {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
@@ -251,10 +296,11 @@ export default function Page() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [auth, db]);
 
   // Listen for real-time thoughts with pagination
   useEffect(() => {
+    if (!db) return;
     const q = query(
       collection(db, "thoughts"),
       orderBy("createdAt", "desc"),
@@ -268,7 +314,7 @@ export default function Page() {
       setFeed(thoughts);
     });
     return () => unsub();
-  }, [page]);
+  }, [db, page]);
 
   // Clean up debounced functions
   useEffect(() => {
@@ -295,7 +341,7 @@ export default function Page() {
       <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        {loading ? (
+        {loading || !firebaseApp ? (
           <div className="flex items-center justify-center h-40">
             <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
