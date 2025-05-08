@@ -1,3 +1,4 @@
+//page.tsx
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -226,11 +227,21 @@ export default function Page() {
   
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-center">
+    <>
+    <header className="w-full bg-white sticky top-0 z-10 py-3 px-4">
+      <h1 className="w-full block text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-center">
         HoneyThoughts🍯
       </h1>
+    </header>
+
+    <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      
+
+
+
+
+
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
@@ -274,55 +285,58 @@ export default function Page() {
             </div>
           )}
 
-
           {/* Feed with animation */}
           <div className="w-full max-w-sm space-y-6 pb-28">
             <AnimatePresence initial={false}>
               {feed.map((t) => (
                 <motion.div
-  key={t.id}
-  initial={{ opacity: 0, y: 30 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -20 }}
-  transition={{ duration: 0.4 }}
-  className="bg-white/70 backdrop-blur-lg p-5 sm:p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300"
->
-  <div className="space-y-2">
-    <p className="text-sm text-gray-700 font-semibold tracking-wide">
-      🧠 {t.nickname || "Anonymous"}
-    </p>
-    <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
-      {t.text}
-    </p>
-    <div className="flex items-center justify-between pt-2">
-      <button
-        onClick={() => likeThought(t.id, t.likedBy, t.likes)}
-        className={`text-sm font-medium flex items-center gap-1 transition ${
-          t.likedBy.includes(user.uid)
-            ? "text-yellow-500"
-            : "text-gray-500 hover:text-pink-500"
-        }`}
-      >
-        🍯 {t.likes}
-      </button>
-      {t.userId === user?.uid && (
-        <button
-          onClick={() => deleteThought(t.id)}
-          className="text-sm font-medium text-red-400 hover:text-red-600 transition"
-        >
-         Delete
-        </button>
-      )}
-    </div>
-  </div>
-</motion.div>
-              
+                  key={t.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                  className="bg-white/70 backdrop-blur-lg p-5 sm:p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300"
+                >
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-700 font-semibold tracking-wide">
+                      🧠 {t.nickname || "Anonymous"}
+                    </p>
+                    <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
+                      {t.text}
+                    </p>
+                    <div className="flex items-center justify-between pt-2">
+                      <button
+                        onClick={() => likeThought(t.id, t.likedBy, t.likes)}
+                        className={`text-sm font-medium flex items-center gap-1 transition ${
+                          t.likedBy.includes(user.uid)
+                            ? "text-yellow-500"
+                            : "text-gray-500 hover:text-pink-500"
+                        }`}
+                      >
+                        🍯 {t.likes}
+                      </button>
+                      {t.userId === user?.uid && (
+                        <button
+                          onClick={() => deleteThought(t.id)}
+                          className="text-sm font-medium text-red-400 hover:text-red-600 transition"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
               ))}
             </AnimatePresence>
           </div>
 
           {/* Floating Thought Input at Bottom */}
-          <div className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-t">
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-t"
+          >
             <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto w-full">
               <textarea
                 placeholder="✨ Share something sweet..."
@@ -341,29 +355,26 @@ export default function Page() {
                 📝 Post
               </button>
             </div>
-          </div>
-
-
+          </motion.div>
         </>
       ) : (
         <div className="w-full max-w-sm bg-white/30 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-center">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to HoneyThoughts 🍯</h2>
-            <p className="text-sm text-gray-600 mb-6">Share your sweet thoughts anonymously.</p>
-            <button
-              onClick={login}
-              className="w-full px-6 py-3 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:scale-[1.02] hover:brightness-110 transition-all font-semibold text-base"
-            >
-              <img
-                src="https://www.svgrepo.com/show/475656/google-color.svg"
-                alt="Google"
-                className="w-5 h-5"
-              />
-              Continue with Google
-            </button>
-
+          <h2 className="text-xl font-semibold mb-4 text-gray-800">Welcome to HoneyThoughts 🍯</h2>
+          <p className="text-sm text-gray-600 mb-6">Share your sweet thoughts anonymously.</p>
+          <button
+            onClick={login}
+            className="w-full px-6 py-3 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:scale-[1.02] hover:brightness-110 transition-all font-semibold text-base"
+          >
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
+              className="w-5 h-5"
+            />
+            Continue with Google
+          </button>
         </div>
-
       )}
     </div>
+    </>
   );
 }
