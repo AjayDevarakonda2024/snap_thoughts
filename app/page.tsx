@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -33,8 +33,10 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import sanitizeHtml from "sanitize-html";
 import debounce from "lodash.debounce";
+import Image from "next/image";
 
 // --- Firebase config ---
+// Ensure these environment variables are set in .env.local
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -274,7 +276,7 @@ export default function Page() {
       postThought.cancel();
       saveNickname.cancel();
     };
-  }, []);
+  }, [postThought, saveNickname]);
 
   // Load more thoughts
   const loadMore = () => {
@@ -439,9 +441,11 @@ export default function Page() {
               className="w-full px-6 py-3 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:scale-[1.02] hover:brightness-110 transition-all font-semibold text-base"
               aria-label="Sign in with Google"
             >
-              <img
+              <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"
+                width={20}
+                height={20}
                 className="w-5 h-5"
               />
               Continue with Google
