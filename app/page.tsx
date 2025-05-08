@@ -36,6 +36,7 @@ import "react-toastify/dist/ReactToastify.css";
 import sanitizeHtml from "sanitize-html";
 import debounce from "lodash.debounce";
 import Image from "next/image";
+import { formatDistanceToNow, format } from "date-fns";
 
 // --- Firebase config ---
 const firebaseConfig = {
@@ -66,7 +67,7 @@ interface Thought {
   likedBy: string[];
   userId: string;
   nickname?: string;
-  createdAt: Timestamp;
+  createdAt: Timestamp | null; // Allow null for safety
 }
 
 // --- Main Component ---
@@ -311,6 +312,7 @@ export default function Page() {
       const thoughts: Thought[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        createdAt: doc.data().createdAt || null, // Ensure createdAt is null if undefined
       } as Thought));
       setFeed(thoughts);
     });
@@ -406,6 +408,11 @@ export default function Page() {
                       <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
                         {t.text}
                       </p>
+                      <p className="text-xs text-gray-500">
+                        {t.createdAt && t.createdAt.toDate
+                          ? `${formatDistanceToNow(t.createdAt.toDate(), { addSuffix: true })} (${format(t.createdAt.toDate(), "MMM d, yyyy, h:mm a")})`
+                          : ""}
+                      </p>
                       <div className="flex items-center justify-between pt-2">
                         <button
                           onClick={() => likeThought(t.id, t.likedBy, t.likes)}
@@ -457,11 +464,11 @@ export default function Page() {
                     className="w-full sm:flex-1 h-20 p-3 rounded-xl shadow-sm border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none transition"
                     value={thought}
                     onChange={(e) => setThought(e.target.value)}
-                    maxLength={100}
+                    maxLength={500}
                     aria-label="Thought input"
                   />
                   <span className="absolute bottom-2 right-3 text-xs text-gray-500">
-                    {thought.length}/100
+                    {thought.length}/500
                   </span>
                 </div>
                 <button
