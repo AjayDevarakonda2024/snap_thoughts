@@ -365,12 +365,12 @@ export default function Page() {
         autoClose={3000}
         theme="light"
         toastClassName="bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-gray-100"
-        progressClassName="bg-[#F4A261]"
+        progressClassName="bg-[#FF99CC]"
       />
 
       {/* Header */}
       <header className="w-full bg-white/90 backdrop-blur-lg sticky top-0 z-30 py-4 px-6 shadow-md">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-center bg-clip-text text-transparent bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] animate-glow">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-center bg-clip-text text-transparent bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] animate-glow">
           HoneyThoughts 🍯
         </h1>
       </header>
@@ -379,7 +379,7 @@ export default function Page() {
       <div className="min-h-screen bg-gradient-to-br p-6 pb-36 flex flex-col items-center">
         {loading || !firebaseApp ? (
           <div className="flex items-center justify-center h-40" aria-live="polite">
-            <div className="w-12 h-12 border-4 border-[#F4A261] border-t-transparent rounded-full animate-spin" aria-label="Loading thoughts"></div>
+            <div className="w-12 h-12 border-4 border-[#FF99CC] border-t-transparent rounded-full animate-spin" aria-label="Loading thoughts"></div>
           </div>
         ) : user ? (
           <>
@@ -391,7 +391,7 @@ export default function Page() {
                 </p>
                 <button
                   onClick={logout}
-                  className="mt-3 px-6 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261]"
+                  className="mt-3 px-6 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC]"
                   aria-label="Log out"
                 >
                   Logout
@@ -407,14 +407,14 @@ export default function Page() {
                 <input
                   type="text"
                   placeholder="e.g. ThoughtBee"
-                  className="w-full p-4 rounded-xl border border-[#F4A261]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#F4A261] focus:border-transparent transition-all duration-200"
+                  className="w-full p-4 rounded-xl border border-[#FF99CC]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#FF99CC] focus:border-transparent transition-all duration-200"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   aria-label="Nickname input"
                 />
                 <button
                   onClick={() => saveNickname(nickname, user, db)}
-                  className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261]"
+                  className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC]"
                   aria-label="Save nickname"
                 >
                   Save Nickname
@@ -437,7 +437,7 @@ export default function Page() {
                       opacity: 1,
                       scale: 1,
                     }}
-                    className="absolute text-[#F4A261] font-semibold text-sm pointer-events-none glow-particle"
+                    className="absolute text-[#FF99CC] font-semibold text-sm pointer-events-none glow-particle"
                   >
                     {particle.text}
                   </motion.div>
@@ -452,11 +452,11 @@ export default function Page() {
                     initial={{ opacity: 0, y: 50, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                    transition={{ duration: 0.4, ease: " SuitesOut" }}
-                    className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-[#F4A261]/30"
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-[#FF99CC]/30"
                   >
                     <div className="space-y-3">
-                      <p className="text-sm font-semibold text-[#F4A261] tracking-wide">
+                      <p className="text-sm font-semibold text-[#FF99CC] tracking-wide">
                         🧠 {t.nickname || "Anonymous"}
                       </p>
                       <p className="text-[#2D3748] text-base leading-relaxed whitespace-pre-wrap">
@@ -475,8 +475,8 @@ export default function Page() {
                           onClick={() => likeThought(t.id, t.likedBy, t.likes)}
                           className={`text-sm font-medium flex items-center gap-1 transition-all duration-200 transform ${
                             t.likedBy.includes(user.uid)
-                              ? "text-[#F4A261] scale-110"
-                              : "text-[#718096] hover:text-[#F4A261] hover:scale-105"
+                              ? "text-[#FF99CC] scale-110"
+                              : "text-[#718096] hover:text-[#FF99CC] hover:scale-105"
                           }`}
                           aria-label={t.likedBy.includes(user.uid) ? "Unlike thought" : "Like thought"}
                         >
@@ -500,7 +500,7 @@ export default function Page() {
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className={`w-full px-6 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] ${
+                  className={`w-full px-6 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] ${
                     isLoadingMore ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   aria-label="Load more thoughts"
@@ -515,14 +515,14 @@ export default function Page() {
               initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white/90 backdrop-blur-xl border-t border-[#F4A261]/30 shadow-t z-20"
+              className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white/90 backdrop-blur-xl border-t border-[#FF99CC]/30 shadow-t z-20"
             >
               <div className="flex flex-col sm:flex-row items-center gap-4 max-w-lg mx-auto w-full">
                 <div className="relative w-full sm:flex-1">
                   <textarea
                     ref={textareaRef}
                     placeholder="✨ Share something sweet..."
-                    className="w-full h-24 p-4 rounded-xl border border-[#F4A261]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#F4A261] focus:border-transparent resize-none transition-all duration-200"
+                    className="w-full h-24 p-4 rounded-xl border border-[#FF99CC]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#FF99CC] focus:border-transparent resize-none transition-all duration-200"
                     value={thought}
                     onChange={(e) => setThought(e.target.value)}
                     maxLength={500}
@@ -535,7 +535,7 @@ export default function Page() {
                 <button
                   onClick={() => postThought(thought, user, db, controls)}
                   disabled={isPosting}
-                  className={`px-8 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] glow-button ${
+                  className={`px-8 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] glow-button ${
                     isPosting ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   aria-label="Post thought"
@@ -553,7 +553,7 @@ export default function Page() {
             <p className="text-sm text-[#718096] mb-6">Share your sweet thoughts anonymously.</p>
             <button
               onClick={login}
-              className="w-full px-8 py-4 flex items-center justify-center gap-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] glow-button"
+              className="w-full px-8 py-4 flex items-center justify-center gap-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] glow-button"
               aria-label="Sign in with Google"
             >
               <Image
@@ -575,10 +575,10 @@ export default function Page() {
         @keyframes glow {
           0%,
           100% {
-            text-shadow: 0 0 10px rgba(244, 162, 97, 0.5);
+            text-shadow: 0 0 10px rgba(255, 153, 204, 0.5);
           }
           50% {
-            text-shadow: 0 0 20px rgba(244, 162, 97, 0.8), 0 0 30px rgba(244, 162, 97, 0.4);
+            text-shadow: 0 0 20px rgba(255, 153, 204, 0.8), 0 0 30px rgba(255, 153, 204, 0.4);
           }
         }
         @keyframes gradientShift {
@@ -596,13 +596,13 @@ export default function Page() {
           animation: glow 3s ease-in-out infinite;
         }
         .glow-particle {
-          text-shadow: 0 0 10px rgba(244, 162, 97, 0.8), 0 0 20px rgba(244, 162, 97, 0.4);
+          text-shadow: 0 0 10px rgba(255, 153, 204, 0.8), 0 0 20px rgba(255, 153, 204, 0.4);
         }
         .glow-button {
-          box-shadow: 0 0 15px rgba(244, 162, 97, 0.5);
+          box-shadow: 0 0 15px rgba(255, 153, 204, 0.5);
         }
         .bg-gradient-to-br {
-          background: linear-gradient(135deg, #fff7ed, #fee9e1, #f5e6f0);
+          background: linear-gradient(135deg, #fce4ec, #e6f3ff, #f3e8ff);
           background-size: 200% 200%;
           animation: gradientShift 15s ease infinite;
         }
@@ -615,7 +615,7 @@ export default function Page() {
           transform: scale(1.05);
         }
         .shadow-t {
-          box-shadow: 0 -4px 6px -1px rgba(244, 162, 97, 0.1), 0 -2px 4px -1px rgba(244, 162, 97, 0.06);
+          box-shadow: 0 -4px 6px -1px rgba(255, 153, 204, 0.1), 0 -2px 4px -1px rgba(255, 153, 204, 0.06);
         }
         @media (prefers-reduced-motion: reduce) {
           .animate-glow,
