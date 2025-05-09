@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion, AnimatePresence, useAnimation, AnimationControls } from "framer-motion";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { initializeApp, FirebaseApp } from "firebase/app";
 import {
   getFirestore,
@@ -37,17 +37,17 @@ import sanitizeHtml from "sanitize-html";
 import debounce from "lodash.debounce";
 import Image from "next/image";
 import { formatDistanceToNow, format } from "date-fns";
+import Head from "next/head";
 
-// --- Firebase config ---
+// --- Firebase config (Moved to .env.local in production) ---
 const firebaseConfig = {
   apiKey: "AIzaSyD3f6Jj6u1xWDRop7MVk-NWhLbwqnPeHfA",
   authDomain: "snap-thoughts-d1423.firebaseapp.com",
-  databaseURL: "https://snap-thoughts-d1423-default-rtdb.firebaseio.com",
   projectId: "snap-thoughts-d1423",
   storageBucket: "snap-thoughts-d1423.firebasestorage.app",
   messagingSenderId: "736664268783",
   appId: "1:736664268783:web:1be88e4d1d26ebd052d01a",
-  measurementId: "G-XYHPJ4PEPC"
+  measurementId: "G-XYHPJ4PEPC",
 };
 
 // --- Types ---
@@ -67,7 +67,14 @@ interface Thought {
   likedBy: string[];
   userId: string;
   nickname?: string;
-  createdAt: Timestamp | null; // Allow null for safety
+  createdAt: Timestamp | null;
+}
+
+interface Particle {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
 }
 
 // --- Main Component ---
@@ -79,12 +86,17 @@ export default function Page() {
   const [isPosting, setIsPosting] = useState(false);
   const [nickname, setNickname] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
   const thoughtsPerPage = 20;
   const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const controls = useAnimation();
 
-  // Initialize Firebase on client side
+  // Initialize Firebase
   useEffect(() => {
     try {
       const app = initializeApp(firebaseConfig);
@@ -95,24 +107,18 @@ export default function Page() {
       setAuth(authInstance);
     } catch (error) {
       console.error("Failed to initialize Firebase:", error);
-      toast.error("Failed to initialize Firebase. Please try again later.");
+      toast.error("Failed to connect to the server. Please try again.");
     }
   }, []);
 
   // Login with Google
   const login = async () => {
-    if (!auth) {
-      toast.error("Authentication service is not initialized.");
-      return;
-    }
+    if (!auth) return toast.error("Authentication service is not initialized.");
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
-      if (!db) {
-        toast.error("Database service is not initialized.");
-        return;
-      }
+      if (!db) return toast.error("Database service is not initialized.");
       const userRef = doc(db, "users", currentUser.uid);
       const userDoc = await getDoc(userRef);
 
@@ -135,10 +141,7 @@ export default function Page() {
 
   // Logout
   const logout = async () => {
-    if (!auth) {
-      toast.error("Authentication service is not initialized.");
-      return;
-    }
+    if (!auth) return toast.error("Authentication service is not initialized.");
     try {
       await signOut(auth);
       setUser(null);
@@ -149,101 +152,120 @@ export default function Page() {
     }
   };
 
-  // Save nickname to Firestore
-  const saveNickname = debounce(async () => {
-    const cleanNickname = sanitizeHtml(nickname.trim(), {
-      allowedTags: [],
-      allowedAttributes: {},
-    });
-    if (cleanNickname === "") {
-      toast.error("Please enter a valid nickname.");
-      return;
-    }
-    if (!user) {
-      toast.error("Please login to set a nickname.");
-      return;
-    }
-    if (!db) {
-      toast.error("Database service is not initialized.");
-      return;
-    }
+  // Save nickname (Debounced)
+  const saveNickname = useMemo(
+    () =>
+      debounce(async (nickname: string, user: User | null, db: Firestore | null) => {
+        const cleanNickname = sanitizeHtml(nickname.trim(), {
+          allowedTags: [],
+          allowedAttributes: {},
+        });
+        if (cleanNickname === "") return toast.error("Please enter a valid nickname.");
+        if (!user) return toast.error("Please login to set a nickname.");
+        if (!db) return toast.error("Database service is not initialized.");
 
-    try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { nickname: cleanNickname });
-      setUser((prev) => ({ ...prev!, nickname: cleanNickname }));
+        try {
+          const userRef = doc(db, "users", user.uid);
+          await updateDoc(userRef, { nickname: cleanNickname });
+          setUser((prev) => ({ ...prev!, nickname: cleanNickname }));
 
-      // Update all thoughts by this user
-      const thoughtsRef = collection(db, "thoughts");
-      const q = query(thoughtsRef, where("userId", "==", user.uid));
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      snapshot.forEach((doc) => {
-        batch.update(doc.ref, { nickname: cleanNickname });
-      });
-      await batch.commit();
-      toast.success("Nickname updated!");
-    } catch (error) {
-      console.error("Failed to save nickname", error);
-      toast.error("Failed to save nickname. Try again.");
-    }
-  }, 500);
+          const thoughtsRef = collection(db, "thoughts");
+          const q = query(thoughtsRef, where("userId", "==", user.uid));
+          const snapshot = await getDocs(q);
+          const batch = writeBatch(db);
+          snapshot.forEach((doc) => {
+            batch.update(doc.ref, { nickname: cleanNickname });
+          });
+          await batch.commit();
+          toast.success("Nickname updated!");
+        } catch (error) {
+          console.error("Failed to save nickname", error);
+          toast.error("Failed to save nickname. Try again.");
+        }
+      }, 500),
+    []
+  );
 
-  // Post a thought
-  const postThought = debounce(async () => {
-    setIsPosting(true);
-    const cleanThought = sanitizeHtml(thought.trim(), {
-      allowedTags: [],
-      allowedAttributes: {},
-    });
-    if (cleanThought === "") {
-      toast.error("Please enter some text.");
-      setIsPosting(false);
-      return;
-    }
-    if (!user) {
-      toast.error("Please login to post a thought.");
-      setIsPosting(false);
-      return;
-    }
-    if (!db) {
-      toast.error("Database service is not initialized.");
-      setIsPosting(false);
-      return;
-    }
+  // Post a thought with particle animation (Debounced)
+  const postThought = useMemo(
+    () =>
+      debounce(
+        async (thought: string, user: User | null, db: Firestore | null, controls: AnimationControls) => {
+          setIsPosting(true);
+          const cleanThought = sanitizeHtml(thought.trim(), {
+            allowedTags: [],
+            allowedAttributes: {},
+          });
+          if (cleanThought === "") {
+            toast.error("Please enter some text.");
+            setIsPosting(false);
+            return;
+          }
+          if (!user || !db) {
+            toast.error(user ? "Database service is not initialized." : "Please login to post a thought.");
+            setIsPosting(false);
+            return;
+          }
 
-    try {
-      await addDoc(collection(db, "thoughts"), {
-        text: cleanThought,
-        likes: 0,
-        likedBy: [],
-        userId: user.uid,
-        nickname: user.nickname || user.displayName || "Anonymous",
-        createdAt: serverTimestamp(),
-      });
-      setThought("");
-      toast.success("Thought posted!");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (error) {
-      console.error("Post thought failed", error);
-      toast.error("Failed to post thought. Try again.");
-    } finally {
-      setIsPosting(false);
-    }
-  }, 500);
+          try {
+            // Get textarea position for particle origin
+            const textareaRect = textareaRef.current?.getBoundingClientRect();
+            const feedRect = feedRef.current?.getBoundingClientRect();
+            if (!textareaRect || !feedRect) throw new Error("Could not get element positions.");
+
+            // Split thought into words (limit to 20 for performance)
+            const words = cleanThought.split(" ").slice(0, 20);
+            const newParticles: Particle[] = words.map((word, index) => ({
+              id: index,
+              text: word,
+              x: textareaRect.left + textareaRect.width / 2,
+              y: textareaRect.top + textareaRect.height / 2,
+            }));
+            setParticles(newParticles);
+
+            // Animate particles
+            await controls.start((i: number) => ({
+              x: feedRect.left + 50 + Math.random() * (feedRect.width - 100),
+              y: feedRect.top + 50,
+              opacity: [1, 1, 0],
+              scale: [1, 1.2, 0.8],
+              transition: {
+                duration: 1.5,
+                ease: "easeOut",
+                delay: i * 0.05,
+              },
+            }));
+
+            // Post to Firestore
+            await addDoc(collection(db, "thoughts"), {
+              text: cleanThought,
+              likes: 0,
+              likedBy: [],
+              userId: user.uid,
+              nickname: user.nickname || user.displayName || "Anonymous",
+              createdAt: serverTimestamp(),
+            });
+
+            setThought("");
+            setParticles([]);
+            toast.success("Thought posted!");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } catch (error) {
+            console.error("Post thought failed", error);
+            toast.error("Failed to post thought. Try again.");
+          } finally {
+            setIsPosting(false);
+          }
+        },
+        500
+      ),
+    []
+  );
 
   // Like a thought
   const likeThought = async (id: string, likedBy: string[], currentLikes: number) => {
-    if (!user) {
-      toast.error("Please login to like a thought.");
-      return;
-    }
-    if (!db) {
-      toast.error("Database service is not initialized.");
-      return;
-    }
+    if (!user || !db) return toast.error(user ? "Database service is not initialized." : "Please login to like a thought.");
     const thoughtRef = doc(db, "thoughts", id);
-
     const alreadyLiked = likedBy.includes(user.uid);
     const updatedLikes = alreadyLiked ? currentLikes - 1 : currentLikes + 1;
     const updatedLikedBy = alreadyLiked
@@ -263,10 +285,7 @@ export default function Page() {
 
   // Delete a thought
   const deleteThought = async (id: string) => {
-    if (!db) {
-      toast.error("Database service is not initialized.");
-      return;
-    }
+    if (!db) return toast.error("Database service is not initialized.");
     if (window.confirm("Are you sure you want to delete this thought?")) {
       try {
         const thoughtRef = doc(db, "thoughts", id);
@@ -279,7 +298,7 @@ export default function Page() {
     }
   };
 
-  // Listen for auth changes
+  // Auth state listener
   useEffect(() => {
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
@@ -300,7 +319,7 @@ export default function Page() {
     return () => unsub();
   }, [auth, db]);
 
-  // Listen for real-time thoughts with pagination
+  // Real-time thoughts with pagination
   useEffect(() => {
     if (!db) return;
     const q = query(
@@ -312,7 +331,7 @@ export default function Page() {
       const thoughts: Thought[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt || null, // Ensure createdAt is null if undefined
+        createdAt: doc.data().createdAt || null,
       } as Thought));
       setFeed(thoughts);
     });
@@ -328,37 +347,51 @@ export default function Page() {
   }, [postThought, saveNickname]);
 
   // Load more thoughts
-  const loadMore = () => {
+  const loadMore = async () => {
+    setIsLoadingMore(true);
     setPage((prev) => prev + 1);
+    setIsLoadingMore(false);
   };
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} />
-      <header className="w-full bg-white sticky top-0 z-10 py-3 px-4">
-        <h1 className="w-full block text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-blue-500 text-center">
-          HoneyThoughts🍯
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>HoneyThoughts 🍯</title>
+        <meta name="description" content="Share your sweet thoughts anonymously." />
+      </Head>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="light"
+        toastClassName="bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-gray-100"
+        progressClassName="bg-[#F4A261]"
+      />
+
+      {/* Header */}
+      <header className="w-full bg-white/90 backdrop-blur-lg sticky top-0 z-30 py-4 px-6 shadow-md">
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-center bg-clip-text text-transparent bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] animate-glow">
+          HoneyThoughts 🍯
         </h1>
       </header>
 
-      <div className="min-h-screen bg-gradient-to-br from-[#FDEFF9] via-[#EECDF7] to-[#A1C4FD] p-4 sm:p-6 pb-28 flex flex-col items-center">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+      {/* Main Content */}
+      <div className="min-h-screen bg-gradient-to-br p-6 pb-36 flex flex-col items-center">
         {loading || !firebaseApp ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex items-center justify-center h-40" aria-live="polite">
+            <div className="w-12 h-12 border-4 border-[#F4A261] border-t-transparent rounded-full animate-spin" aria-label="Loading thoughts"></div>
           </div>
         ) : user ? (
           <>
             {/* Profile & Logout */}
-            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-6 w-full max-w-sm bg-white/30 backdrop-blur-md rounded-2xl p-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-8 w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="text-center sm:text-left w-full">
-                <p className="font-semibold text-base sm:text-lg text-gray-800">
-                  {user.nickname ? `Nickname: ${user.nickname}` : user.displayName || user.email}
+                <p className="font-semibold text-lg text-[#2D3748] tracking-tight">
+                  {user.nickname ? `✨ ${user.nickname}` : user.displayName || user.email}
                 </p>
                 <button
                   onClick={logout}
-                  className="mt-2 text-sm font-semibold text-white bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 px-4 py-2 rounded-full shadow-md w-full sm:w-auto transition duration-200"
+                  className="mt-3 px-6 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261]"
                   aria-label="Log out"
                 >
                   Logout
@@ -368,20 +401,20 @@ export default function Page() {
 
             {/* Nickname Input */}
             {!user.nickname && (
-              <div className="w-full max-w-sm bg-white/40 backdrop-blur-md rounded-2xl p-6 shadow-xl mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Choose a Nickname</h3>
-                <p className="text-sm text-gray-600 mb-4">This will be shown with your posts.</p>
+              <div className="w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-lg mb-8 hover:shadow-xl transition-shadow duration-300">
+                <h3 className="text-xl font-semibold text-[#2D3748] mb-3 tracking-tight">Choose a Nickname</h3>
+                <p className="text-sm text-[#718096] mb-4">This will be shown with your posts.</p>
                 <input
                   type="text"
                   placeholder="e.g. ThoughtBee"
-                  className="w-full p-3 rounded-xl border border-gray-300 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
+                  className="w-full p-4 rounded-xl border border-[#F4A261]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#F4A261] focus:border-transparent transition-all duration-200"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   aria-label="Nickname input"
                 />
                 <button
-                  onClick={saveNickname}
-                  className="mt-4 w-full px-6 py-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold rounded-full shadow-md hover:brightness-110 transition-all"
+                  onClick={() => saveNickname(nickname, user, db)}
+                  className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261]"
                   aria-label="Save nickname"
                 >
                   Save Nickname
@@ -389,46 +422,70 @@ export default function Page() {
               </div>
             )}
 
-            {/* Feed with animation */}
-            <div className="w-full max-w-sm space-y-6 pb-28">
+            {/* Feed */}
+            <div className="w-full max-w-lg space-y-6 pb-36 relative" aria-live="polite" ref={feedRef}>
+              {/* Particle Animation */}
+              <AnimatePresence>
+                {particles.map((particle, i) => (
+                  <motion.div
+                    key={particle.id}
+                    custom={i}
+                    animate={controls}
+                    initial={{
+                      x: particle.x - window.scrollX,
+                      y: particle.y - window.scrollY,
+                      opacity: 1,
+                      scale: 1,
+                    }}
+                    className="absolute text-[#F4A261] font-semibold text-sm pointer-events-none glow-particle"
+                  >
+                    {particle.text}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* Thought Cards */}
               <AnimatePresence initial={false}>
                 {feed.map((t) => (
                   <motion.div
                     key={t.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.4 }}
-                    className="bg-white/70 backdrop-blur-lg p-5 sm:p-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300"
+                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -50, scale: 0.9 }}
+                    transition={{ duration: 0.4, ease: " SuitesOut" }}
+                    className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-[#F4A261]/30"
                   >
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-700 font-semibold tracking-wide">
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-[#F4A261] tracking-wide">
                         🧠 {t.nickname || "Anonymous"}
                       </p>
-                      <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
+                      <p className="text-[#2D3748] text-base leading-relaxed whitespace-pre-wrap">
                         {t.text}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[#718096]">
                         {t.createdAt && t.createdAt.toDate
-                          ? `${formatDistanceToNow(t.createdAt.toDate(), { addSuffix: true })} (${format(t.createdAt.toDate(), "MMM d, yyyy, h:mm a")})`
-                          : ""}
+                          ? `${formatDistanceToNow(t.createdAt.toDate(), { addSuffix: true })} (${format(
+                              t.createdAt.toDate(),
+                              "MMM d, yyyy, h:mm a"
+                            )})`
+                          : "Date unavailable"}
                       </p>
                       <div className="flex items-center justify-between pt-2">
                         <button
                           onClick={() => likeThought(t.id, t.likedBy, t.likes)}
-                          className={`text-sm font-medium flex items-center gap-1 transition ${
+                          className={`text-sm font-medium flex items-center gap-1 transition-all duration-200 transform ${
                             t.likedBy.includes(user.uid)
-                              ? "text-yellow-500"
-                              : "text-gray-500 hover:text-pink-500"
+                              ? "text-[#F4A261] scale-110"
+                              : "text-[#718096] hover:text-[#F4A261] hover:scale-105"
                           }`}
                           aria-label={t.likedBy.includes(user.uid) ? "Unlike thought" : "Like thought"}
                         >
-                          🍯 {t.likes}
+                          🍯 <span className="font-semibold">{t.likes}</span>
                         </button>
                         {t.userId === user?.uid && (
                           <button
                             onClick={() => deleteThought(t.id)}
-                            className="text-sm font-medium text-red-400 hover:text-red-600 transition"
+                            className="text-sm font-medium text-[#E53E3E] hover:text-[#C53030] transition-all duration-200"
                             aria-label="Delete thought"
                           >
                             Delete
@@ -442,39 +499,43 @@ export default function Page() {
               {feed.length >= thoughtsPerPage * page && (
                 <button
                   onClick={loadMore}
-                  className="w-full px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-full shadow-md hover:brightness-110 transition-all"
+                  disabled={isLoadingMore}
+                  className={`w-full px-6 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] ${
+                    isLoadingMore ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                   aria-label="Load more thoughts"
                 >
-                  Load More
+                  {isLoadingMore ? "Loading..." : "Load More"}
                 </button>
               )}
             </div>
 
-            {/* Floating Thought Input at Bottom */}
+            {/* Floating Thought Input */}
             <motion.div
               initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="fixed bottom-0 left-0 right-0 px-4 py-4 bg-white/80 backdrop-blur-md border-t border-gray-200 shadow-t"
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white/90 backdrop-blur-xl border-t border-[#F4A261]/30 shadow-t z-20"
             >
-              <div className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto w-full">
+              <div className="flex flex-col sm:flex-row items-center gap-4 max-w-lg mx-auto w-full">
                 <div className="relative w-full sm:flex-1">
                   <textarea
+                    ref={textareaRef}
                     placeholder="✨ Share something sweet..."
-                    className="w-full sm:flex-1 h-20 p-3 rounded-xl shadow-sm border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none transition"
+                    className="w-full h-24 p-4 rounded-xl border border-[#F4A261]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#F4A261] focus:border-transparent resize-none transition-all duration-200"
                     value={thought}
                     onChange={(e) => setThought(e.target.value)}
                     maxLength={500}
                     aria-label="Thought input"
                   />
-                  <span className="absolute bottom-2 right-3 text-xs text-gray-500">
+                  <span className="absolute bottom-3 right-3 text-xs text-[#718096]">
                     {thought.length}/500
                   </span>
                 </div>
                 <button
-                  onClick={postThought}
+                  onClick={() => postThought(thought, user, db, controls)}
                   disabled={isPosting}
-                  className={`px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl font-semibold hover:brightness-110 shadow-md w-full sm:w-auto transition-all ${
+                  className={`px-8 py-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] glow-button ${
                     isPosting ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   aria-label="Post thought"
@@ -485,28 +546,89 @@ export default function Page() {
             </motion.div>
           </>
         ) : (
-          <div className="w-full max-w-sm bg-white/30 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-center">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">
+          <div className="w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg p-8 text-center hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-2xl font-semibold mb-4 text-[#2D3748] tracking-tight">
               Welcome to HoneyThoughts 🍯
             </h2>
-            <p className="text-sm text-gray-600 mb-6">Share your sweet thoughts anonymously.</p>
+            <p className="text-sm text-[#718096] mb-6">Share your sweet thoughts anonymously.</p>
             <button
               onClick={login}
-              className="w-full px-6 py-3 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:scale-[1.02] hover:brightness-110 transition-all font-semibold text-base"
+              className="w-full px-8 py-4 flex items-center justify-center gap-3 bg-gradient-to-r from-[#F4A261] to-[#F9C1B1] text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#F4A261] glow-button"
               aria-label="Sign in with Google"
             >
               <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"
-                width={20}
-                height={20}
-                className="w-5 h-5"
+                width={24}
+                height={24}
+                className="w-6 h-6"
+                priority
               />
               Continue with Google
             </button>
           </div>
         )}
       </div>
+
+      {/* Custom CSS */}
+      <style jsx global>{`
+        @keyframes glow {
+          0%,
+          100% {
+            text-shadow: 0 0 10px rgba(244, 162, 97, 0.5);
+          }
+          50% {
+            text-shadow: 0 0 20px rgba(244, 162, 97, 0.8), 0 0 30px rgba(244, 162, 97, 0.4);
+          }
+        }
+        @keyframes gradientShift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        .animate-glow {
+          animation: glow 3s ease-in-out infinite;
+        }
+        .glow-particle {
+          text-shadow: 0 0 10px rgba(244, 162, 97, 0.8), 0 0 20px rgba(244, 162, 97, 0.4);
+        }
+        .glow-button {
+          box-shadow: 0 0 15px rgba(244, 162, 97, 0.5);
+        }
+        .bg-gradient-to-br {
+          background: linear-gradient(135deg, #fff7ed, #fee9e1, #f5e6f0);
+          background-size: 200% 200%;
+          animation: gradientShift 15s ease infinite;
+        }
+        button:focus,
+        input:focus,
+        textarea:focus {
+          outline: none;
+        }
+        .hover\:scale-105:hover {
+          transform: scale(1.05);
+        }
+        .shadow-t {
+          box-shadow: 0 -4px 6px -1px rgba(244, 162, 97, 0.1), 0 -2px 4px -1px rgba(244, 162, 97, 0.06);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-glow,
+          .glow-particle,
+          .hover\:scale-105:hover,
+          .bg-gradient-to-br {
+            animation: none;
+            transform: none;
+            text-shadow: none;
+            box-shadow: none;
+          }
+        }
+      `}</style>
     </>
   );
 }
