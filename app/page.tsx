@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, useAnimation, AnimationControls } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { initializeApp, FirebaseApp } from "firebase/app";
 import {
@@ -36,7 +36,7 @@ import "react-toastify/dist/ReactToastify.css";
 import sanitizeHtml from "sanitize-html";
 import debounce from "lodash.debounce";
 import Image from "next/image";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 import Head from "next/head";
 
 // --- Firebase config (Moved to .env.local in production) ---
@@ -60,41 +60,29 @@ interface User {
   nickname?: string;
 }
 
-interface Thought {
+interface Message {
   id: string;
   text: string;
-  likes: number;
-  likedBy: string[];
   userId: string;
   nickname?: string;
   createdAt: Timestamp | null;
 }
 
-interface Particle {
-  id: number;
-  text: string;
-  x: number;
-  y: number;
-}
-
 // --- Main Component ---
 export default function Page() {
   const [user, setUser] = useState<User | null>(null);
-  const [thought, setThought] = useState("");
-  const [feed, setFeed] = useState<Thought[]>([]);
+  const [message, setMessage] = useState("");
+  const [feed, setFeed] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPosting, setIsPosting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [nickname, setNickname] = useState<string>("");
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const thoughtsPerPage = 20;
   const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
-  const controls = useAnimation();
 
   // Initialize Firebase
   useEffect(() => {
@@ -107,18 +95,18 @@ export default function Page() {
       setAuth(authInstance);
     } catch (error) {
       console.error("Failed to initialize Firebase:", error);
-      toast.error("Failed to connect to the server. Please try again.");
+      toast.error("Error: Connection to server failed. Retry.");
     }
   }, []);
 
   // Login with Google
   const login = async () => {
-    if (!auth) return toast.error("Authentication service is not initialized.");
+    if (!auth) return toast.error("Error: Auth service offline.");
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
-      if (!db) return toast.error("Database service is not initialized.");
+      if (!db) return toast.error("Error: Database offline.");
       const userRef = doc(db, "users", currentUser.uid);
       const userDoc = await getDoc(userRef);
 
@@ -132,23 +120,23 @@ export default function Page() {
       const latestUserDoc = await getDoc(userRef);
       const data = latestUserDoc.data();
       setUser({ ...currentUser, nickname: data?.nickname || "" });
-      toast.success("Logged in successfully!");
+      toast.success("Access granted!");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please try again.");
+      toast.error("Error: Access denied. Try again.");
     }
   };
 
   // Logout
   const logout = async () => {
-    if (!auth) return toast.error("Authentication service is not initialized.");
+    if (!auth) return toast.error("Error: Auth service offline.");
     try {
       await signOut(auth);
       setUser(null);
-      toast.success("Logged out successfully!");
+      toast.success("Session terminated!");
     } catch (error) {
       console.error("Logout error:", error);
-      toast.error("Logout failed. Please try again.");
+      toast.error("Error: Logout failed. Try again.");
     }
   };
 
@@ -160,101 +148,69 @@ export default function Page() {
           allowedTags: [],
           allowedAttributes: {},
         });
-        if (cleanNickname === "") return toast.error("Please enter a valid nickname.");
-        if (!user) return toast.error("Please login to set a nickname.");
-        if (!db) return toast.error("Database service is not initialized.");
+        if (cleanNickname === "") return toast.error("Error: Invalid handle.");
+        if (!user) return toast.error("Error: Must be logged in.");
+        if (!db) return toast.error("Error: Database offline.");
 
         try {
           const userRef = doc(db, "users", user.uid);
           await updateDoc(userRef, { nickname: cleanNickname });
           setUser((prev) => ({ ...prev!, nickname: cleanNickname }));
 
-          const thoughtsRef = collection(db, "thoughts");
-          const q = query(thoughtsRef, where("userId", "==", user.uid));
+          const messagesRef = collection(db, "messages");
+          const q = query(messagesRef, where("userId", "==", user.uid));
           const snapshot = await getDocs(q);
           const batch = writeBatch(db);
           snapshot.forEach((doc) => {
             batch.update(doc.ref, { nickname: cleanNickname });
           });
           await batch.commit();
-          toast.success("Nickname updated!");
+          toast.success("Handle updated!");
         } catch (error) {
           console.error("Failed to save nickname", error);
-          toast.error("Failed to save nickname. Try again.");
+          toast.error("Error: Handle update failed.");
         }
       }, 500),
     []
   );
 
-  // Post a thought with particle animation (Debounced)
-  const postThought = useMemo(
+  // Send a message (Debounced)
+  const sendMessage = useMemo(
     () =>
       debounce(
-        async (thought: string, user: User | null, db: Firestore | null, controls: AnimationControls) => {
-          setIsPosting(true);
-          const cleanThought = sanitizeHtml(thought.trim(), {
+        async (message: string, user: User | null, db: Firestore | null) => {
+          setIsSending(true);
+          const cleanMessage = sanitizeHtml(message.trim(), {
             allowedTags: [],
             allowedAttributes: {},
           });
-          if (cleanThought === "") {
-            toast.error("Please enter some text.");
-            setIsPosting(false);
+          if (cleanMessage === "") {
+            toast.error("Error: Message empty.");
+            setIsSending(false);
             return;
           }
           if (!user || !db) {
-            toast.error(user ? "Database service is not initialized." : "Please login to post a thought.");
-            setIsPosting(false);
+            toast.error(user ? "Error: Database offline." : "Error: Must be logged in.");
+            setIsSending(false);
             return;
           }
 
           try {
-            // Get textarea position for particle origin
-            const textareaRect = textareaRef.current?.getBoundingClientRect();
-            const feedRect = feedRef.current?.getBoundingClientRect();
-            if (!textareaRect || !feedRect) throw new Error("Could not get element positions.");
-
-            // Split thought into words (limit to 20 for performance)
-            const words = cleanThought.split(" ").slice(0, 20);
-            const newParticles: Particle[] = words.map((word, index) => ({
-              id: index,
-              text: word,
-              x: textareaRect.left + textareaRect.width / 2,
-              y: textareaRect.top + textareaRect.height / 2,
-            }));
-            setParticles(newParticles);
-
-            // Animate particles
-            await controls.start((i: number) => ({
-              x: feedRect.left + 50 + Math.random() * (feedRect.width - 100),
-              y: feedRect.top + 50,
-              opacity: [1, 1, 0],
-              scale: [1, 1.2, 0.8],
-              transition: {
-                duration: 1.5,
-                ease: "easeOut",
-                delay: i * 0.05,
-              },
-            }));
-
-            // Post to Firestore
-            await addDoc(collection(db, "thoughts"), {
-              text: cleanThought,
-              likes: 0,
-              likedBy: [],
+            await addDoc(collection(db, "messages"), {
+              text: cleanMessage,
               userId: user.uid,
-              nickname: user.nickname || user.displayName || "Anonymous",
+              nickname: user.nickname || user.displayName || "Anon",
               createdAt: serverTimestamp(),
             });
 
-            setThought("");
-            setParticles([]);
-            toast.success("Thought posted!");
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            setMessage("");
+            toast.success("Message sent!");
+            window.scrollTo({ top: feedRef.current?.offsetTop, behavior: "smooth" });
           } catch (error) {
-            console.error("Post thought failed", error);
-            toast.error("Failed to post thought. Try again.");
+            console.error("Send message failed", error);
+            toast.error("Error: Send failed. Try again.");
           } finally {
-            setIsPosting(false);
+            setIsSending(false);
           }
         },
         500
@@ -262,38 +218,17 @@ export default function Page() {
     []
   );
 
-  // Like a thought
-  const likeThought = async (id: string, likedBy: string[], currentLikes: number) => {
-    if (!user || !db) return toast.error(user ? "Database service is not initialized." : "Please login to like a thought.");
-    const thoughtRef = doc(db, "thoughts", id);
-    const alreadyLiked = likedBy.includes(user.uid);
-    const updatedLikes = alreadyLiked ? currentLikes - 1 : currentLikes + 1;
-    const updatedLikedBy = alreadyLiked
-      ? likedBy.filter((uid) => uid !== user.uid)
-      : [...likedBy, user.uid];
-
-    try {
-      await updateDoc(thoughtRef, {
-        likes: updatedLikes,
-        likedBy: updatedLikedBy,
-      });
-    } catch (error) {
-      console.error("Failed to update like", error);
-      toast.error("Failed to like thought. Try again.");
-    }
-  };
-
-  // Delete a thought
-  const deleteThought = async (id: string) => {
-    if (!db) return toast.error("Database service is not initialized.");
-    if (window.confirm("Are you sure you want to delete this thought?")) {
+  // Delete a message
+  const deleteMessage = async (id: string) => {
+    if (!db) return toast.error("Error: Database offline.");
+    if (window.confirm("Delete this message?")) {
       try {
-        const thoughtRef = doc(db, "thoughts", id);
-        await deleteDoc(thoughtRef);
-        toast.success("Thought deleted!");
+        const messageRef = doc(db, "messages", id);
+        await deleteDoc(messageRef);
+        toast.success("Message deleted!");
       } catch (error) {
         console.error("Delete failed", error);
-        toast.error("Failed to delete thought. Try again.");
+        toast.error("Error: Delete failed. Try again.");
       }
     }
   };
@@ -319,21 +254,24 @@ export default function Page() {
     return () => unsub();
   }, [auth, db]);
 
-  // Real-time thoughts with pagination
+  // Real-time messages with pagination
   useEffect(() => {
     if (!db) return;
     const q = query(
-      collection(db, "thoughts"),
+      collection(db, "messages"),
       orderBy("createdAt", "desc"),
-      limit(thoughtsPerPage * page)
+      limit(20 * page)
     );
     const unsub = onSnapshot(q, (snapshot) => {
-      const thoughts: Thought[] = snapshot.docs.map((doc) => ({
+      const messages: Message[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt || null,
-      } as Thought));
-      setFeed(thoughts);
+      } as Message));
+      setFeed(messages);
+    }, (error) => {
+      console.error("Snapshot error:", error);
+      toast.error("Error: Failed to load messages.");
     });
     return () => unsub();
   }, [db, page]);
@@ -341,12 +279,12 @@ export default function Page() {
   // Clean up debounced functions
   useEffect(() => {
     return () => {
-      postThought.cancel();
+      sendMessage.cancel();
       saveNickname.cancel();
     };
-  }, [postThought, saveNickname]);
+  }, [sendMessage, saveNickname]);
 
-  // Load more thoughts
+  // Load more messages
   const loadMore = async () => {
     setIsLoadingMore(true);
     setPage((prev) => prev + 1);
@@ -357,214 +295,175 @@ export default function Page() {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>HoneyThoughts 🍯</title>
-        <meta name="description" content="Share your sweet thoughts anonymously." />
+        <title>HackChat_</title>
+        <meta name="description" content="Encrypted chat for hackers." />
+        <link
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
       </Head>
       <ToastContainer
         position="top-right"
         autoClose={3000}
-        theme="light"
-        toastClassName="bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-gray-100"
-        progressClassName="bg-[#FF99CC]"
+        theme="dark"
+        toastClassName="bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono rounded-lg"
+        progressClassName="bg-[#00FF00]"
       />
 
       {/* Header */}
-      <header className="w-full bg-white/90 backdrop-blur-lg sticky top-0 z-30 py-4 px-6 shadow-md">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-center bg-clip-text text-transparent bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] animate-glow">
-          HoneyThoughts 🍯
+      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-4 px-6 border-b border-[#00FF00]">
+        <h1 className="text-3xl font-bold text-[#00FF00] font-mono animate-glitch">
+          HackChat_ [v1.0.0]
         </h1>
       </header>
 
       {/* Main Content */}
-      <div className="min-h-screen bg-gradient-to-br p-6 pb-36 flex flex-col items-center">
+      <div className="min-h-screen bg-[#0A0A0A] p-6 flex flex-col items-center">
         {loading || !firebaseApp ? (
           <div className="flex items-center justify-center h-40" aria-live="polite">
-            <div className="w-12 h-12 border-4 border-[#FF99CC] border-t-transparent rounded-full animate-spin" aria-label="Loading thoughts"></div>
+            <div className="w-12 h-12 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" aria-label="Connecting to server"></div>
           </div>
         ) : user ? (
           <>
             {/* Profile & Logout */}
-            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-8 w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <div className="text-center sm:text-left w-full">
-                <p className="font-semibold text-lg text-[#2D3748] tracking-tight">
-                  {user.nickname ? `✨ ${user.nickname}` : user.displayName || user.email}
-                </p>
-                <button
-                  onClick={logout}
-                  className="mt-3 px-6 py-2 text-sm font-semibold text-white bg-[#E53E3E] rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC]"
-                  aria-label="Log out"
-                >
-                  Logout
-                </button>
-              </div>
+            <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 mb-6 flex justify-between items-center">
+              <p className="font-mono text-[#00FF00]">
+                {'>'} {user.nickname ? `${user.nickname}` : user.displayName || user.email}
+              </p>
+              <button
+                onClick={logout}
+                className="px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch"
+                aria-label="Log out"
+              >
+                exit
+              </button>
             </div>
 
             {/* Nickname Input */}
             {!user.nickname && (
-              <div className="w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-lg mb-8 hover:shadow-xl transition-shadow duration-300">
-                <h3 className="text-xl font-semibold text-[#2D3748] mb-3 tracking-tight">Choose a Nickname</h3>
-                <p className="text-sm text-[#718096] mb-4">This will be shown with your posts.</p>
+              <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 mb-6">
+                <p className="font-mono text-[#00FF00] mb-2">{'>'} Set hacker handle</p>
                 <input
                   type="text"
-                  placeholder="e.g. ThoughtBee"
-                  className="w-full p-4 rounded-xl border border-[#FF99CC]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#FF99CC] focus:border-transparent transition-all duration-200"
+                  placeholder="e.g. CyberPunk"
+                  className="w-full p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  aria-label="Nickname input"
+                  aria-label="Handle input"
                 />
                 <button
                   onClick={() => saveNickname(nickname, user, db)}
-                  className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC]"
-                  aria-label="Save nickname"
+                  className="mt-4 px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch"
+                  aria-label="Save handle"
                 >
-                  Save Nickname
+                  {'>'} save
                 </button>
               </div>
             )}
 
-            {/* Feed */}
-            <div className="w-full max-w-lg space-y-6 pb-36 relative" aria-live="polite" ref={feedRef}>
-              {/* Particle Animation */}
-              <AnimatePresence>
-                {particles.map((particle, i) => (
-                  <motion.div
-                    key={particle.id}
-                    custom={i}
-                    animate={controls}
-                    initial={{
-                      x: particle.x - window.scrollX,
-                      y: particle.y - window.scrollY,
-                      opacity: 1,
-                      scale: 1,
-                    }}
-                    className="absolute text-[#FF99CC] font-semibold text-sm pointer-events-none glow-particle"
-                  >
-                    {particle.text}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Thought Cards */}
+            {/* Chat Feed */}
+            <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 h-[60vh] overflow-y-auto mb-6 flex flex-col gap-4" ref={feedRef} role="feed" aria-live="polite">
               <AnimatePresence initial={false}>
-                {feed.map((t) => (
+                {feed.map((msg) => (
                   <motion.div
-                    key={t.id}
-                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                    transition={{ duration: 0.4, ease: "easeOut" }}
-                    className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 border border-[#FF99CC]/30"
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className="space-y-3">
-                      <p className="text-sm font-semibold text-[#FF99CC] tracking-wide">
-                        🧠 {t.nickname || "Anonymous"}
+                    <div
+                      className={`max-w-[70%] p-3 rounded-lg ${
+                        msg.userId === user.uid
+                          ? 'bg-[#00FF00]/20 text-[#00FF00]'
+                          : 'bg-[#00FFFF]/20 text-[#00FFFF]'
+                      }`}
+                    >
+                      <p className="font-mono text-sm mb-1">
+                        {msg.nickname || "Anon"} |{' '}
+                        {msg.createdAt && msg.createdAt.toDate
+                          ? format(msg.createdAt.toDate(), "HH:mm")
+                          : "??:??"}
                       </p>
-                      <p className="text-[#2D3748] text-base leading-relaxed whitespace-pre-wrap">
-                        {t.text}
-                      </p>
-                      <p className="text-xs text-[#718096]">
-                        {t.createdAt && t.createdAt.toDate
-                          ? `${formatDistanceToNow(t.createdAt.toDate(), { addSuffix: true })} (${format(
-                              t.createdAt.toDate(),
-                              "MMM d, yyyy, h:mm a"
-                            )})`
-                          : "Date unavailable"}
-                      </p>
-                      <div className="flex items-center justify-between pt-2">
+                      <p className="font-mono whitespace-pre-wrap">{msg.text}</p>
+                      {msg.userId === user?.uid && (
                         <button
-                          onClick={() => likeThought(t.id, t.likedBy, t.likes)}
-                          className={`text-sm font-medium flex items-center gap-1 transition-all duration-200 transform ${
-                            t.likedBy.includes(user.uid)
-                              ? "text-[#FF99CC] scale-110"
-                              : "text-[#718096] hover:text-[#FF99CC] hover:scale-105"
-                          }`}
-                          aria-label={t.likedBy.includes(user.uid) ? "Unlike thought" : "Like thought"}
+                          onClick={() => deleteMessage(msg.id)}
+                          className="font-mono text-xs text-[#FF5555] hover:text-[#FF0000] transition-all duration-200 mt-1"
+                          aria-label="Delete message"
                         >
-                          🍯 <span className="font-semibold">{t.likes}</span>
+                          del
                         </button>
-                        {t.userId === user?.uid && (
-                          <button
-                            onClick={() => deleteThought(t.id)}
-                            className="text-sm font-medium text-[#E53E3E] hover:text-[#C53030] transition-all duration-200"
-                            aria-label="Delete thought"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
-              {feed.length >= thoughtsPerPage * page && (
+              {feed.length >= 20 * page && (
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className={`w-full px-6 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] ${
-                    isLoadingMore ? "opacity-50 cursor-not-allowed" : ""
+                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 ${
+                    isLoadingMore ? 'opacity-50' : ''
                   }`}
-                  aria-label="Load more thoughts"
+                  aria-label="Load more messages"
                 >
-                  {isLoadingMore ? "Loading..." : "Load More"}
+                  {'>'} load more
                 </button>
               )}
             </div>
 
-            {/* Floating Thought Input */}
+            {/* Message Input */}
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
+              initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="fixed bottom-0 left-0 right-0 px-6 py-4 bg-white/90 backdrop-blur-xl border-t border-[#FF99CC]/30 shadow-t z-20"
+              transition={{ duration: 0.3 }}
+              className="fixed bottom-0 left-0 right-0 p-4 bg-[#0A0A0A] border-t border-[#00FF00]"
             >
-              <div className="flex flex-col sm:flex-row items-center gap-4 max-w-lg mx-auto w-full">
-                <div className="relative w-full sm:flex-1">
-                  <textarea
-                    ref={textareaRef}
-                    placeholder="✨ Share something sweet..."
-                    className="w-full h-24 p-4 rounded-xl border border-[#FF99CC]/30 bg-white/80 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#FF99CC] focus:border-transparent resize-none transition-all duration-200"
-                    value={thought}
-                    onChange={(e) => setThought(e.target.value)}
-                    maxLength={500}
-                    aria-label="Thought input"
-                  />
-                  <span className="absolute bottom-3 right-3 text-xs text-[#718096]">
-                    {thought.length}/500
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 max-w-2xl mx-auto">
+                <input
+                  ref={inputRef}
+                  placeholder="> Type your message..."
+                  className="flex-1 p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={500}
+                  aria-label="Message input"
+                />
                 <button
-                  onClick={() => postThought(thought, user, db, controls)}
-                  disabled={isPosting}
-                  className={`px-8 py-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] glow-button ${
-                    isPosting ? "opacity-50 cursor-not-allowed" : ""
+                  onClick={() => sendMessage(message, user, db)}
+                  disabled={isSending}
+                  className={`px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch ${
+                    isSending ? 'opacity-50' : ''
                   }`}
-                  aria-label="Post thought"
+                  aria-label="Send message"
                 >
-                  {isPosting ? "Posting..." : "📝 Post"}
+                  {'>'} send
                 </button>
               </div>
             </motion.div>
           </>
         ) : (
-          <div className="w-full max-w-lg bg-white/60 backdrop-blur-xl rounded-3xl shadow-lg p-8 text-center hover:shadow-xl transition-shadow duration-300">
-            <h2 className="text-2xl font-semibold mb-4 text-[#2D3748] tracking-tight">
-              Welcome to HoneyThoughts 🍯
+          <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 text-center">
+            <h2 className="text-xl font-mono text-[#00FF00] mb-4 animate-glitch">
+              HackChat_ Access Terminal
             </h2>
-            <p className="text-sm text-[#718096] mb-6">Share your sweet thoughts anonymously.</p>
+            <p className="font-mono text-[#00FFFF] mb-4">Enter the matrix.</p>
             <button
               onClick={login}
-              className="w-full px-8 py-4 flex items-center justify-center gap-3 bg-gradient-to-r from-[#FF99CC] to-[#66CCFF] text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 focus:ring-2 focus:ring-[#FF99CC] glow-button"
+              className="px-6 py-3 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch flex items-center justify-center gap-2 mx-auto"
               aria-label="Sign in with Google"
             >
               <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"
-                width={24}
-                height={24}
-                className="w-6 h-6"
+                width={20}
+                height={20}
+                className="w-5 h-5"
                 priority
               />
-              Continue with Google
+              auth google
             </button>
           </div>
         )}
@@ -572,60 +471,57 @@ export default function Page() {
 
       {/* Custom CSS */}
       <style jsx global>{`
-        @keyframes glow {
-          0%,
-          100% {
-            text-shadow: 0 0 10px rgba(255, 153, 204, 0.5);
-          }
-          50% {
-            text-shadow: 0 0 20px rgba(255, 153, 204, 0.8), 0 0 30px rgba(255, 153, 204, 0.4);
-          }
-        }
-        @keyframes gradientShift {
+        @keyframes glitch {
           0% {
-            background-position: 0% 50%;
+            transform: translate(0);
+            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
+          }
+          14% {
+            transform: translate(-0.05em, 0.05em);
+            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
+          }
+          15% {
+            transform: translate(-0.05em, 0.05em);
+            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
+          }
+          49% {
+            transform: translate(0);
+            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
           }
           50% {
-            background-position: 100% 50%;
+            transform: translate(0.05em, -0.05em);
+            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
+          }
+          99% {
+            transform: translate(0);
+            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
           }
           100% {
-            background-position: 0% 50%;
+            transform: translate(0);
+            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
           }
         }
-        .animate-glow {
-          animation: glow 3s ease-in-out infinite;
+        body {
+          font-family: 'JetBrains Mono', monospace;
+          background: #0A0A0A;
+          color: #00FF00;
         }
-        .glow-particle {
-          text-shadow: 0 0 10px rgba(255, 153, 204, 0.8), 0 0 20px rgba(255, 153, 204, 0.4);
+        .animate-glitch {
+          animation: glitch 1s linear infinite;
         }
-        .glow-button {
-          box-shadow: 0 0 15px rgba(255, 153, 204, 0.5);
-        }
-        .bg-gradient-to-br {
-          background: linear-gradient(135deg, #fce4ec, #e6f3ff, #f3e8ff);
-          background-size: 200% 200%;
-          animation: gradientShift 15s ease infinite;
+        .glitch:hover {
+          animation: glitch 0.3s linear infinite;
         }
         button:focus,
-        input:focus,
-        textarea:focus {
+        input:focus {
           outline: none;
-        }
-        .hover\:scale-105:hover {
-          transform: scale(1.05);
-        }
-        .shadow-t {
-          box-shadow: 0 -4px 6px -1px rgba(255, 153, 204, 0.1), 0 -2px 4px -1px rgba(255, 153, 204, 0.06);
+          border-color: #00FFFF;
         }
         @media (prefers-reduced-motion: reduce) {
-          .animate-glow,
-          .glow-particle,
-          .hover\:scale-105:hover,
-          .bg-gradient-to-br {
+          .animate-glitch,
+          .glitch:hover {
             animation: none;
-            transform: none;
             text-shadow: none;
-            box-shadow: none;
           }
         }
       `}</style>
