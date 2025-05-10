@@ -160,6 +160,7 @@ export default function Page() {
           const messagesRef = collection(db, "messages");
           const q = query(messagesRef, where("userId", "==", user.uid));
           const snapshot = await getDocs(q);
+
           const batch = writeBatch(db);
           snapshot.forEach((doc) => {
             batch.update(doc.ref, { nickname: cleanNickname });
@@ -291,10 +292,21 @@ export default function Page() {
     setIsLoadingMore(false);
   };
 
+  // Handle input focus for mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (inputRef.current && document.activeElement === inputRef.current) {
+        inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <title>HackChat_</title>
         <meta name="description" content="Encrypted chat for hackers." />
         <link
@@ -306,33 +318,33 @@ export default function Page() {
         position="top-right"
         autoClose={3000}
         theme="dark"
-        toastClassName="bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono rounded-lg"
+        toastClassName="bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono rounded-lg text-sm"
         progressClassName="bg-[#00FF00]"
       />
 
       {/* Header */}
-      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-4 px-6 border-b border-[#00FF00]">
-        <h1 className="text-3xl font-bold text-[#00FF00] font-mono animate-glitch">
+      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-3 px-4 border-b border-[#00FF00]">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#00FF00] font-mono animate-glitch">
           HackChat_ [v1.0.0]
         </h1>
       </header>
 
       {/* Main Content */}
-      <div className="min-h-screen bg-[#0A0A0A] p-6 flex flex-col items-center">
+      <div className="bg-[#0A0A0A] px-4 py-6 flex flex-col items-center min-h-screen">
         {loading || !firebaseApp ? (
           <div className="flex items-center justify-center h-40" aria-live="polite">
-            <div className="w-12 h-12 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" aria-label="Connecting to server"></div>
+            <div className="w-10 h-10 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" aria-label="Connecting to server"></div>
           </div>
         ) : user ? (
           <>
             {/* Profile & Logout */}
-            <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 mb-6 flex justify-between items-center">
-              <p className="font-mono text-[#00FF00]">
+            <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 mb-4 flex justify-between items-center">
+              <p className="font-mono text-[#00FF00] text-sm md:text-base">
                 {'>'} {user.nickname ? `${user.nickname}` : user.displayName || user.email}
               </p>
               <button
                 onClick={logout}
-                className="px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch"
+                className="px-3 py-1.5 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px]"
                 aria-label="Log out"
               >
                 exit
@@ -341,19 +353,19 @@ export default function Page() {
 
             {/* Nickname Input */}
             {!user.nickname && (
-              <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 mb-6">
-                <p className="font-mono text-[#00FF00] mb-2">{'>'} Set hacker handle</p>
+              <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 mb-4">
+                <p className="font-mono text-[#00FF00] mb-2 text-sm md:text-base">{'>'} Set hacker handle</p>
                 <input
                   type="text"
                   placeholder="e.g. CyberPunk"
-                  className="w-full p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200"
+                  className="w-full p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   aria-label="Handle input"
                 />
                 <button
                   onClick={() => saveNickname(nickname, user, db)}
-                  className="mt-4 px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch"
+                  className="mt-3 px-3 py-1.5 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px]"
                   aria-label="Save handle"
                 >
                   {'>'} save
@@ -362,7 +374,7 @@ export default function Page() {
             )}
 
             {/* Chat Feed */}
-            <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 h-[60vh] overflow-y-auto mb-6 flex flex-col gap-4" ref={feedRef} role="feed" aria-live="polite">
+            <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 h-[calc(100vh-240px)] overflow-y-auto mb-4 flex flex-col gap-3" ref={feedRef} role="feed" aria-live="polite">
               <AnimatePresence initial={false}>
                 {feed.map((msg) => (
                   <motion.div
@@ -374,19 +386,19 @@ export default function Page() {
                     className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[70%] p-3 rounded-lg ${
+                      className={`max-w-[80%] p-2.5 rounded-lg ${
                         msg.userId === user.uid
                           ? 'bg-[#00FF00]/20 text-[#00FF00]'
                           : 'bg-[#00FFFF]/20 text-[#00FFFF]'
                       }`}
                     >
-                      <p className="font-mono text-sm mb-1">
+                      <p className="font-mono text-xs mb-1">
                         {msg.nickname || "Anon"} |{' '}
                         {msg.createdAt && msg.createdAt.toDate
                           ? format(msg.createdAt.toDate(), "HH:mm")
                           : "??:??"}
                       </p>
-                      <p className="font-mono whitespace-pre-wrap">{msg.text}</p>
+                      <p className="font-mono text-sm whitespace-pre-wrap">{msg.text}</p>
                       {msg.userId === user?.uid && (
                         <button
                           onClick={() => deleteMessage(msg.id)}
@@ -404,7 +416,7 @@ export default function Page() {
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 ${
+                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
                     isLoadingMore ? 'opacity-50' : ''
                   }`}
                   aria-label="Load more messages"
@@ -419,13 +431,13 @@ export default function Page() {
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed bottom-0 left-0 right-0 p-4 bg-[#0A0A0A] border-t border-[#00FF00]"
+              className="fixed bottom-0 left-0 right-0 p-3 bg-[#0A0A0A] border-t border-[#00FF00] z-40"
             >
-              <div className="flex items-center gap-2 max-w-2xl mx-auto">
+              <div className="flex items-center gap-2 max-w-lg mx-auto">
                 <input
                   ref={inputRef}
                   placeholder="> Type your message..."
-                  className="flex-1 p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200"
+                  className="flex-1 p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   maxLength={500}
@@ -434,7 +446,7 @@ export default function Page() {
                 <button
                   onClick={() => sendMessage(message, user, db)}
                   disabled={isSending}
-                  className={`px-4 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch ${
+                  className={`px-3 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px] ${
                     isSending ? 'opacity-50' : ''
                   }`}
                   aria-label="Send message"
@@ -445,22 +457,22 @@ export default function Page() {
             </motion.div>
           </>
         ) : (
-          <div className="w-full max-w-2xl bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-6 text-center">
-            <h2 className="text-xl font-mono text-[#00FF00] mb-4 animate-glitch">
+          <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 text-center">
+            <h2 className="text-lg md:text-xl font-mono text-[#00FF00] mb-3 animate-glitch">
               HackChat_ Access Terminal
             </h2>
-            <p className="font-mono text-[#00FFFF] mb-4">Enter the matrix.</p>
+            <p className="font-mono text-[#00FFFF] mb-3 text-sm md:text-base">Enter the matrix.</p>
             <button
               onClick={login}
-              className="px-6 py-3 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch flex items-center justify-center gap-2 mx-auto"
+              className="px-5 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch flex items-center justify-center gap-2 mx-auto text-sm md:text-base min-w-[120px]"
               aria-label="Sign in with Google"
             >
               <Image
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="Google"
-                width={20}
-                height={20}
-                className="w-5 h-5"
+                width={16}
+                height={16}
+                className="w-4 h-4"
                 priority
               />
               auth google
@@ -501,10 +513,13 @@ export default function Page() {
             text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
           }
         }
-        body {
+        html, body {
           font-family: 'JetBrains Mono', monospace;
           background: #0A0A0A;
           color: #00FF00;
+          margin: 0;
+          padding: 0;
+          overflow-x: hidden;
         }
         .animate-glitch {
           animation: glitch 1s linear infinite;
@@ -517,11 +532,26 @@ export default function Page() {
           outline: none;
           border-color: #00FFFF;
         }
+        button {
+          touch-action: manipulation;
+        }
         @media (prefers-reduced-motion: reduce) {
           .animate-glitch,
           .glitch:hover {
             animation: none;
             text-shadow: none;
+          }
+        }
+        @media (max-width: 640px) {
+          .min-h-screen {
+            padding-bottom: 80px; /* Space for fixed input */
+          }
+          .fixed.bottom-0 {
+            bottom: env(safe-area-inset-bottom, 0);
+            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
+          }
+          .h-[calc(100vh-240px)] {
+            height: calc(100vh - 200px);
           }
         }
       `}</style>
