@@ -1,4 +1,3 @@
-
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -102,37 +101,52 @@ export default function Page() {
 
   // Handle keyboard visibility for input bar
   useEffect(() => {
+    let timeout: NodeJS.Timeout;
+
     const handleViewportChange = () => {
       if (!inputRef.current) return;
 
-      const viewport = window.visualViewport;
-      if (!viewport) return;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (!inputRef.current) return; // Additional null check for TypeScript
 
-      const keyboardHeight = window.innerHeight - viewport.height;
-      const isKeyboardOpen = keyboardHeight > 0;
+        const viewport = window.visualViewport || {
+          height: window.innerHeight,
+          offsetTop: 0,
+        };
+        const keyboardHeight = window.innerHeight - viewport.height;
+        const isKeyboardOpen = keyboardHeight > 0;
 
-      if (document.activeElement === inputRef.current && isKeyboardOpen) {
         const inputContainer = inputRef.current.parentElement?.parentElement;
-        if (inputContainer) {
-          inputContainer.style.paddingBottom = `${keyboardHeight + 8}px`;
-        }
-        inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-      } else {
-        const inputContainer = inputRef.current.parentElement?.parentElement;
-        if (inputContainer) {
+        if (document.activeElement === inputRef.current && isKeyboardOpen) {
+          if (inputContainer) {
+            inputContainer.style.paddingBottom = `${keyboardHeight + 8}px`;
+          }
+          const inputRect = inputRef.current.getBoundingClientRect();
+          if (inputRect.bottom > viewport.height + viewport.offsetTop) {
+            inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+          }
+        } else if (inputContainer) {
           inputContainer.style.paddingBottom = "8px";
         }
-      }
+      }, 100);
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
-    window.visualViewport?.addEventListener("scroll", handleViewportChange);
     window.addEventListener("resize", handleViewportChange);
 
+    const handleFocus = () => handleViewportChange();
+    if (inputRef.current) {
+      inputRef.current.addEventListener("focus", handleFocus);
+    }
+
     return () => {
+      clearTimeout(timeout);
       window.visualViewport?.removeEventListener("resize", handleViewportChange);
-      window.visualViewport?.removeEventListener("scroll", handleViewportChange);
       window.removeEventListener("resize", handleViewportChange);
+      if (inputRef.current) {
+        inputRef.current.removeEventListener("focus", handleFocus);
+      }
     };
   }, []);
 
@@ -311,7 +325,6 @@ export default function Page() {
         createdAt: doc.data().createdAt || null,
       } as Message));
       setFeed(messages);
-      // Auto-scroll to latest message
       if (feedRef.current) {
         feedRef.current.scrollTop = feedRef.current.scrollHeight;
       }
@@ -461,7 +474,7 @@ export default function Page() {
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className={`w-full p-2 font-mono text-[#0 INTEGRATED_CODE_A0A0A0] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
+                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
                     isLoadingMore ? 'opacity-50' : ''
                   }`}
                   aria-label="Load more messages"
@@ -603,6 +616,7 @@ export default function Page() {
         [role="feed"] {
           scroll-behavior: smooth;
           overscroll-behavior: contain;
+          contain: layout;
         }
         @media (prefers-reduced-motion: reduce) {
           .animate-glitch,
