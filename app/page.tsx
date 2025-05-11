@@ -1,3 +1,4 @@
+
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,7 +40,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import Head from "next/head";
 
-// --- Firebase config (Moved to .env.local in production) ---
+// --- Firebase config (Move to .env.local in production) ---
 const firebaseConfig = {
   apiKey: "AIzaSyD3f6Jj6u1xWDRop7MVk-NWhLbwqnPeHfA",
   authDomain: "snap-thoughts-d1423.firebaseapp.com",
@@ -99,6 +100,42 @@ export default function Page() {
     }
   }, []);
 
+  // Handle keyboard visibility for input bar
+  useEffect(() => {
+    const handleViewportChange = () => {
+      if (!inputRef.current) return;
+
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+
+      const keyboardHeight = window.innerHeight - viewport.height;
+      const isKeyboardOpen = keyboardHeight > 0;
+
+      if (document.activeElement === inputRef.current && isKeyboardOpen) {
+        const inputContainer = inputRef.current.parentElement?.parentElement;
+        if (inputContainer) {
+          inputContainer.style.paddingBottom = `${keyboardHeight + 8}px`;
+        }
+        inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      } else {
+        const inputContainer = inputRef.current.parentElement?.parentElement;
+        if (inputContainer) {
+          inputContainer.style.paddingBottom = "8px";
+        }
+      }
+    };
+
+    window.visualViewport?.addEventListener("resize", handleViewportChange);
+    window.visualViewport?.addEventListener("scroll", handleViewportChange);
+    window.addEventListener("resize", handleViewportChange);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleViewportChange);
+      window.visualViewport?.removeEventListener("scroll", handleViewportChange);
+      window.removeEventListener("resize", handleViewportChange);
+    };
+  }, []);
+
   // Login with Google
   const login = async () => {
     if (!auth) return toast.error("Error: Auth service offline.");
@@ -148,7 +185,9 @@ export default function Page() {
           allowedTags: [],
           allowedAttributes: {},
         });
-        if (cleanNickname === "") return toast.error("Error: Invalid handle.");
+        if (cleanNickname === "" || cleanNickname.length > 20 || !/^[a-zA-Z0-9_-]+$/.test(cleanNickname)) {
+          return toast.error("Error: Handle must be 1-20 chars, letters, numbers, _, or -.");
+        }
         if (!user) return toast.error("Error: Must be logged in.");
         if (!db) return toast.error("Error: Database offline.");
 
@@ -185,8 +224,8 @@ export default function Page() {
             allowedTags: [],
             allowedAttributes: {},
           });
-          if (cleanMessage === "") {
-            toast.error("Error: Message empty.");
+          if (cleanMessage === "" || cleanMessage.length > 500) {
+            toast.error("Error: Message must be 1-500 chars.");
             setIsSending(false);
             return;
           }
@@ -206,7 +245,9 @@ export default function Page() {
 
             setMessage("");
             toast.success("Message sent!");
-            window.scrollTo({ top: feedRef.current?.offsetTop, behavior: "smooth" });
+            if (feedRef.current) {
+              feedRef.current.scrollTop = feedRef.current.scrollHeight;
+            }
           } catch (error) {
             console.error("Send message failed", error);
             toast.error("Error: Send failed. Try again.");
@@ -270,6 +311,10 @@ export default function Page() {
         createdAt: doc.data().createdAt || null,
       } as Message));
       setFeed(messages);
+      // Auto-scroll to latest message
+      if (feedRef.current) {
+        feedRef.current.scrollTop = feedRef.current.scrollHeight;
+      }
     }, (error) => {
       console.error("Snapshot error:", error);
       toast.error("Error: Failed to load messages.");
@@ -292,17 +337,6 @@ export default function Page() {
     setIsLoadingMore(false);
   };
 
-  // Handle input focus for mobile
-  useEffect(() => {
-    const handleResize = () => {
-      if (inputRef.current && document.activeElement === inputRef.current) {
-        inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
     <>
       <Head>
@@ -323,10 +357,30 @@ export default function Page() {
       />
 
       {/* Header */}
-      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-3 px-4 border-b border-[#00FF00]">
-        <h1 className="text-2xl md:text-3xl font-bold text-[#00FF00] font-mono animate-glitch">
-          HackChat_ [v1.0.0]
+      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-2 px-4 border-b border-[#00FF00] flex items-center justify-between">
+        <h1 className="text-xl md:text-2xl font-bold text-[#00FF00] font-mono animate-glitch">
+          HackChat_
         </h1>
+        {user && (
+          <div className="flex items-center gap-2">
+            <p className="font-mono text-[#00FF00] text-sm">
+              {user.nickname || user.displayName || user.email}
+            </p>
+            <button
+              onClick={logout}
+              className="p-2 text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] rounded-full transition-all duration-200"
+              aria-label="Log out"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -337,20 +391,6 @@ export default function Page() {
           </div>
         ) : user ? (
           <>
-            {/* Profile & Logout */}
-            <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 mb-4 flex justify-between items-center">
-              <p className="font-mono text-[#00FF00] text-sm md:text-base">
-                {'>'} {user.nickname ? `${user.nickname}` : user.displayName || user.email}
-              </p>
-              <button
-                onClick={logout}
-                className="px-3 py-1.5 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px]"
-                aria-label="Log out"
-              >
-                exit
-              </button>
-            </div>
-
             {/* Nickname Input */}
             {!user.nickname && (
               <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 mb-4">
@@ -374,7 +414,12 @@ export default function Page() {
             )}
 
             {/* Chat Feed */}
-            <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 h-[calc(100vh-240px)] overflow-y-auto mb-4 flex flex-col gap-3" ref={feedRef} role="feed" aria-live="polite">
+            <div
+              className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 h-[calc(100vh-180px)] overflow-y-auto mb-4 flex flex-col gap-2"
+              ref={feedRef}
+              role="feed"
+              aria-live="polite"
+            >
               <AnimatePresence initial={false}>
                 {feed.map((msg) => (
                   <motion.div
@@ -386,17 +431,17 @@ export default function Page() {
                     className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] p-2.5 rounded-lg ${
+                      className={`max-w-[70%] p-3 rounded-2xl shadow-md ${
                         msg.userId === user.uid
-                          ? 'bg-[#00FF00]/20 text-[#00FF00]'
-                          : 'bg-[#00FFFF]/20 text-[#00FFFF]'
+                          ? 'bg-[#00FF00]/30 text-[#00FF00] rounded-br-md'
+                          : 'bg-[#00FFFF]/20 text-[#00FFFF] rounded-bl-md'
                       }`}
                     >
-                      <p className="font-mono text-xs mb-1">
+                      <p className="font-mono text-xs mb-1 opacity-80">
                         {msg.nickname || "Anon"} |{' '}
                         {msg.createdAt && msg.createdAt.toDate
                           ? format(msg.createdAt.toDate(), "HH:mm")
-                          : "??:??"}
+                          : "Unknown"}
                       </p>
                       <p className="font-mono text-sm whitespace-pre-wrap">{msg.text}</p>
                       {msg.userId === user?.uid && (
@@ -416,7 +461,7 @@ export default function Page() {
                 <button
                   onClick={loadMore}
                   disabled={isLoadingMore}
-                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
+                  className={`w-full p-2 font-mono text-[#0 INTEGRATED_CODE_A0A0A0] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
                     isLoadingMore ? 'opacity-50' : ''
                   }`}
                   aria-label="Load more messages"
@@ -431,13 +476,27 @@ export default function Page() {
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed bottom-0 left-0 right-0 p-3 bg-[#0A0A0A] border-t border-[#00FF00] z-40"
+              className="fixed bottom-0 left-0 right-0 bg-[#1A1A1A] border-t border-[#00FF00] z-40"
+              style={{ transition: "padding-bottom 0.2s ease" }}
             >
-              <div className="flex items-center gap-2 max-w-lg mx-auto">
+              <div className="flex items-center gap-2 max-w-lg mx-auto p-3">
+                <button
+                  className="p-2 text-[#00FF00] hover:text-[#00FFFF] transition-all duration-200"
+                  aria-label="Attach file"
+                  disabled
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M14.828 9.172a4 4 0 0 1 0 5.656l-2.829 2.829a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.828-2.829a1 1 0 0 0-1.414-1.414l-2.829 2.829a4 4 0 0 0 0 5.656 4 4 0 0 0 5.657 0l2.828-2.829a6 6 0 0 0 0-8.485 1 1 0 0 0-1.414 1.415z" />
+                  </svg>
+                </button>
                 <input
                   ref={inputRef}
-                  placeholder="> Type your message..."
-                  className="flex-1 p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
+                  placeholder="Type a message..."
+                  className="flex-1 p-3 bg-[#0A0A0A] border border-[#00FF00] rounded-full text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   maxLength={500}
@@ -445,13 +504,19 @@ export default function Page() {
                 />
                 <button
                   onClick={() => sendMessage(message, user, db)}
-                  disabled={isSending}
-                  className={`px-3 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px] ${
-                    isSending ? 'opacity-50' : ''
+                  disabled={isSending || !message.trim()}
+                  className={`p-2 text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] rounded-full transition-all duration-200 ${
+                    isSending || !message.trim() ? 'opacity-50' : ''
                   }`}
                   aria-label="Send message"
                 >
-                  {'>'} send
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  </svg>
                 </button>
               </div>
             </motion.div>
@@ -535,6 +600,10 @@ export default function Page() {
         button {
           touch-action: manipulation;
         }
+        [role="feed"] {
+          scroll-behavior: smooth;
+          overscroll-behavior: contain;
+        }
         @media (prefers-reduced-motion: reduce) {
           .animate-glitch,
           .glitch:hover {
@@ -544,15 +613,17 @@ export default function Page() {
         }
         @media (max-width: 640px) {
           .min-h-screen {
-            padding-bottom: 80px; /* Space for fixed input */
+            padding-bottom: 60px;
           }
           .fixed.bottom-0 {
             bottom: env(safe-area-inset-bottom, 0);
-            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0));
           }
-          .h-[calc(100vh-240px)] {
-            height: calc(100vh - 200px);
+          .h-[calc(100vh-180px)] {
+            height: calc(100vh - 140px - env(safe-area-inset-bottom, 0));
           }
+        }
+        .fixed.bottom-0 {
+          transition: padding-bottom 0.2s ease;
         }
       `}</style>
     </>
