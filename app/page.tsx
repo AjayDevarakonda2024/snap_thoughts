@@ -38,8 +38,9 @@ import debounce from "lodash.debounce";
 import Image from "next/image";
 import { format } from "date-fns";
 import Head from "next/head";
+import { RefObject } from "react";
 
-// --- Firebase config (Move to .env.local in production) ---
+// Firebase config (Move to .env.local in production)
 const firebaseConfig = {
   apiKey: "AIzaSyD3f6Jj6u1xWDRop7MVk-NWhLbwqnPeHfA",
   authDomain: "snap-thoughts-d1423.firebaseapp.com",
@@ -50,7 +51,7 @@ const firebaseConfig = {
   measurementId: "G-XYHPJ4PEPC",
 };
 
-// --- Types ---
+// Types
 interface User {
   displayName: string | null;
   email: string | null;
@@ -68,7 +69,247 @@ interface Message {
   createdAt: Timestamp | null;
 }
 
-// --- Main Component ---
+// Header Component
+function Header({ user, logout }: { user: User | null; logout: () => void }) {
+  return (
+    <header className="sticky top-0 z-30 flex items-center justify-between w-full px-4 py-3 bg-gray-950 border-b border-green-500 shadow-sm">
+      <h1 className="text-xl font-bold text-green-500 md:text-2xl font-mono animate-glitch">
+        HackChat_
+      </h1>
+      {user && (
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-green-500 font-mono md:text-base">
+            {user.nickname || user.displayName || user.email}
+          </p>
+          <button
+            onClick={logout}
+            className="p-2 transition-transform duration-200 transform bg-green-500 rounded-full hover:bg-cyan-400 hover:scale-105 active:scale-95"
+            aria-label="Log out"
+          >
+            <svg className="w-4 h-4 text-gray-950" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+          </button>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// Nickname Input Component
+function NicknameSection({
+  nickname,
+  setNickname,
+  saveNickname,
+  user,
+  db,
+}: {
+  nickname: string;
+  setNickname: (value: string) => void;
+  saveNickname: (nickname: string, user: User | null, db: Firestore | null) => void;
+  user: User | null;
+  db: Firestore | null;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md p-4 mb-4 bg-gray-900 border border-green-500 rounded-lg shadow-lg"
+    >
+      <p className="mb-2 text-sm text-green-500 font-mono md:text-base">{'>'} Set hacker handle</p>
+      <input
+        type="text"
+        placeholder="e.g. CyberPunk"
+        className="w-full p-3 text-sm text-green-500 transition-all duration-200 bg-gray-950 border border-green-500 rounded-md font-mono md:text-base focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50"
+        value={nickname}
+        onChange={(e) => setNickname(e.target.value)}
+        aria-label="Handle input"
+      />
+      <button
+        onClick={() => saveNickname(nickname, user, db)}
+        className="px-4 py-2 mt-3 text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base"
+        aria-label="Save handle"
+      >
+        {'>'} Save
+      </button>
+    </motion.div>
+  );
+}
+
+// Chat Feed Component
+function ChatFeed({
+  feed,
+  user,
+  deleteMessage,
+  feedRef,
+  loadMore,
+  isLoadingMore,
+  page,
+}: {
+  feed: Message[];
+  user: User | null;
+  deleteMessage: (id: string) => void;
+  feedRef: RefObject<HTMLDivElement | null>;
+  loadMore: () => void;
+  isLoadingMore: boolean;
+  page: number;
+}) {
+  return (
+    <div
+      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-gray-900 border border-green-500 rounded-lg shadow-lg h-[calc(100vh-200px)] flex flex-col gap-3 scroll-smooth"
+      ref={feedRef}
+      role="feed"
+      aria-live="polite"
+    >
+      <AnimatePresence initial={false}>
+        {feed.map((msg) => (
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className={`flex ${msg.userId === user?.uid ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[70%] p-3 rounded-2xl shadow-md ${
+                msg.userId === user?.uid
+                  ? 'bg-green-500/20 text-green-500 rounded-br-sm'
+                  : 'bg-cyan-400/20 text-cyan-400 rounded-bl-sm'
+              }`}
+            >
+              <p className="mb-1 text-xs font-mono opacity-80">
+                {msg.nickname || 'Anon'} |{' '}
+                {msg.createdAt && msg.createdAt.toDate
+                  ? format(msg.createdAt.toDate(), 'HH:mm')
+                  : 'Unknown'}
+              </p>
+              <p className="text-sm font-mono whitespace-pre-wrap md:text-base">{msg.text}</p>
+              {msg.userId === user?.uid && (
+                <button
+                  onClick={() => deleteMessage(msg.id)}
+                  className="mt-1 text-xs font-mono text-red-500 transition-colors duration-200 hover:text-red-600"
+                  aria-label="Delete message"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      {feed.length >= 20 * page && (
+        <button
+          onClick={loadMore}
+          disabled={isLoadingMore}
+          className={`w-full p-3 text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base ${
+            isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          aria-label="Load more messages"
+        >
+          {'>'} Load More
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Message Input Component
+function MessageInput({
+  message,
+  setMessage,
+  sendMessage,
+  isSending,
+  user,
+  db,
+  inputRef,
+}: {
+  message: string;
+  setMessage: (value: string) => void;
+  sendMessage: (message: string, user: User | null, db: Firestore | null) => void;
+  isSending: boolean;
+  user: User | null;
+  db: Firestore | null;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-green-500"
+      style={{ transition: 'padding-bottom 0.2s ease' }}
+    >
+      <div className="flex items-center gap-3 max-w-2xl p-3 mx-auto">
+        <button
+          className="p-2 transition-colors duration-200 text-green-500 hover:text-cyan-400"
+          aria-label="Attach file"
+          disabled
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M14.828 9.172a4 4 0 0 1 0 5.656l-2.829 2.829a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.828-2.829a1 1 0 0 0-1.414-1.414l-2.829 2.829a4 4 0 0 0 0 5.656 4 4 0 0 0 5.657 0l2.828-2.829a6 6 0 0 0 0-8.485 1 1 0 0 0-1.414 1.415z" />
+          </svg>
+        </button>
+        <input
+          ref={inputRef}
+          placeholder="Type a message..."
+          className="flex-1 p-3 text-sm text-green-500 transition-all duration-200 bg-gray-950 border border-green-500 rounded-full font-mono md:text-base focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          maxLength={500}
+          aria-label="Message input"
+        />
+        <button
+          onClick={() => sendMessage(message, user, db)}
+          disabled={isSending || !message.trim()}
+          className={`p-2 transition-transform duration-200 transform bg-green-500 rounded-full hover:bg-cyan-400 hover:scale-105 active:scale-95 text-gray-950 ${
+            isSending || !message.trim() ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          aria-label="Send message"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// Auth Section Component
+function AuthSection({ login }: { login: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md p-6 text-center bg-gray-900 border border-green-500 rounded-lg shadow-lg"
+    >
+      <h2 className="mb-3 text-lg font-mono text-green-500 md:text-xl animate-glitch">
+        HackChat_ Access Terminal
+      </h2>
+      <p className="mb-4 text-sm text-cyan-400 font-mono md:text-base">Enter the matrix.</p>
+      <button
+        onClick={login}
+        className="flex items-center justify-center gap-2 px-5 py-2 mx-auto text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base min-w-[140px]"
+        aria-label="Sign in with Google"
+      >
+        <Image
+          src="https://www.svgrepo.com/show/475656/google-color.svg"
+          alt="Google"
+          width={16}
+          height={16}
+          className="w-4 h-4"
+          priority
+        />
+        Auth Google
+      </button>
+    </motion.div>
+  );
+}
+
+// Main Component
 export default function Page() {
   const [user, setUser] = useState<User | null>(null);
   const [message, setMessage] = useState("");
@@ -81,8 +322,8 @@ export default function Page() {
   const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const feedRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const feedRef = useRef<HTMLDivElement | null>(null);
 
   // Initialize Firebase
   useEffect(() => {
@@ -108,7 +349,7 @@ export default function Page() {
 
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        if (!inputRef.current) return; // Additional null check for TypeScript
+        if (!inputRef.current) return;
 
         const viewport = window.visualViewport || {
           height: window.innerHeight,
@@ -120,14 +361,14 @@ export default function Page() {
         const inputContainer = inputRef.current.parentElement?.parentElement;
         if (document.activeElement === inputRef.current && isKeyboardOpen) {
           if (inputContainer) {
-            inputContainer.style.paddingBottom = `${keyboardHeight + 8}px`;
+            inputContainer.style.paddingBottom = `${keyboardHeight + 16}px`;
           }
           const inputRect = inputRef.current.getBoundingClientRect();
           if (inputRect.bottom > viewport.height + viewport.offsetTop) {
             inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
           }
         } else if (inputContainer) {
-          inputContainer.style.paddingBottom = "8px";
+          inputContainer.style.paddingBottom = "16px";
         }
       }, 100);
     };
@@ -353,7 +594,10 @@ export default function Page() {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
         <title>HackChat_</title>
         <meta name="description" content="Encrypted chat for hackers." />
         <link
@@ -365,201 +609,54 @@ export default function Page() {
         position="top-right"
         autoClose={3000}
         theme="dark"
-        toastClassName="bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono rounded-lg text-sm"
-        progressClassName="bg-[#00FF00]"
+        toastClassName="bg-gray-950 border border-green-500 text-green-500 font-mono rounded-lg text-sm shadow-lg"
+        progressClassName="bg-green-500"
       />
-
-      {/* Header */}
-      <header className="w-full bg-[#0A0A0A] sticky top-0 z-30 py-2 px-4 border-b border-[#00FF00] flex items-center justify-between">
-        <h1 className="text-xl md:text-2xl font-bold text-[#00FF00] font-mono animate-glitch">
-          HackChat_
-        </h1>
-        {user && (
-          <div className="flex items-center gap-2">
-            <p className="font-mono text-[#00FF00] text-sm">
-              {user.nickname || user.displayName || user.email}
-            </p>
-            <button
-              onClick={logout}
-              className="p-2 text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] rounded-full transition-all duration-200"
-              aria-label="Log out"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              </svg>
-            </button>
-          </div>
-        )}
-      </header>
-
-      {/* Main Content */}
-      <div className="bg-[#0A0A0A] px-4 py-6 flex flex-col items-center min-h-screen">
-        {loading || !firebaseApp ? (
-          <div className="flex items-center justify-center h-40" aria-live="polite">
-            <div className="w-10 h-10 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin" aria-label="Connecting to server"></div>
-          </div>
-        ) : user ? (
-          <>
-            {/* Nickname Input */}
-            {!user.nickname && (
-              <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 mb-4">
-                <p className="font-mono text-[#00FF00] mb-2 text-sm md:text-base">{'>'} Set hacker handle</p>
-                <input
-                  type="text"
-                  placeholder="e.g. CyberPunk"
-                  className="w-full p-2 bg-[#0A0A0A] border border-[#00FF00] text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  aria-label="Handle input"
-                />
-                <button
-                  onClick={() => saveNickname(nickname, user, db)}
-                  className="mt-3 px-3 py-1.5 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch text-sm md:text-base min-w-[60px]"
-                  aria-label="Save handle"
-                >
-                  {'>'} save
-                </button>
-              </div>
-            )}
-
-            {/* Chat Feed */}
-            <div
-              className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 h-[calc(100vh-180px)] overflow-y-auto mb-4 flex flex-col gap-2"
-              ref={feedRef}
-              role="feed"
-              aria-live="polite"
-            >
-              <AnimatePresence initial={false}>
-                {feed.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[70%] p-3 rounded-2xl shadow-md ${
-                        msg.userId === user.uid
-                          ? 'bg-[#00FF00]/30 text-[#00FF00] rounded-br-md'
-                          : 'bg-[#00FFFF]/20 text-[#00FFFF] rounded-bl-md'
-                      }`}
-                    >
-                      <p className="font-mono text-xs mb-1 opacity-80">
-                        {msg.nickname || "Anon"} |{' '}
-                        {msg.createdAt && msg.createdAt.toDate
-                          ? format(msg.createdAt.toDate(), "HH:mm")
-                          : "Unknown"}
-                      </p>
-                      <p className="font-mono text-sm whitespace-pre-wrap">{msg.text}</p>
-                      {msg.userId === user?.uid && (
-                        <button
-                          onClick={() => deleteMessage(msg.id)}
-                          className="font-mono text-xs text-[#FF5555] hover:text-[#FF0000] transition-all duration-200 mt-1"
-                          aria-label="Delete message"
-                        >
-                          del
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {feed.length >= 20 * page && (
-                <button
-                  onClick={loadMore}
-                  disabled={isLoadingMore}
-                  className={`w-full p-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 text-sm ${
-                    isLoadingMore ? 'opacity-50' : ''
-                  }`}
-                  aria-label="Load more messages"
-                >
-                  {'>'} load more
-                </button>
-              )}
+      <div className="flex flex-col min-h-screen bg-gray-950 font-mono">
+        <Header user={user} logout={logout} />
+        <main className="flex flex-col items-center flex-1 px-4 py-6">
+          {loading || !firebaseApp ? (
+            <div className="flex items-center justify-center h-40" aria-live="polite">
+              <div
+                className="w-10 h-10 border-4 border-green-500 rounded-full border-t-transparent animate-spin"
+                aria-label="Connecting to server"
+              ></div>
             </div>
-
-            {/* Message Input */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed bottom-0 left-0 right-0 bg-[#1A1A1A] border-t border-[#00FF00] z-40"
-              style={{ transition: "padding-bottom 0.2s ease" }}
-            >
-              <div className="flex items-center gap-2 max-w-lg mx-auto p-3">
-                <button
-                  className="p-2 text-[#00FF00] hover:text-[#00FFFF] transition-all duration-200"
-                  aria-label="Attach file"
-                  disabled
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M14.828 9.172a4 4 0 0 1 0 5.656l-2.829 2.829a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.828-2.829a1 1 0 0 0-1.414-1.414l-2.829 2.829a4 4 0 0 0 0 5.656 4 4 0 0 0 5.657 0l2.828-2.829a6 6 0 0 0 0-8.485 1 1 0 0 0-1.414 1.415z" />
-                  </svg>
-                </button>
-                <input
-                  ref={inputRef}
-                  placeholder="Type a message..."
-                  className="flex-1 p-3 bg-[#0A0A0A] border border-[#00FF00] rounded-full text-[#00FF00] font-mono focus:outline-none focus:border-[#00FFFF] transition-all duration-200 text-sm md:text-base"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  maxLength={500}
-                  aria-label="Message input"
+          ) : user ? (
+            <>
+              {!user.nickname && (
+                <NicknameSection
+                  nickname={nickname}
+                  setNickname={setNickname}
+                  saveNickname={saveNickname}
+                  user={user}
+                  db={db}
                 />
-                <button
-                  onClick={() => sendMessage(message, user, db)}
-                  disabled={isSending || !message.trim()}
-                  className={`p-2 text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] rounded-full transition-all duration-200 ${
-                    isSending || !message.trim() ? 'opacity-50' : ''
-                  }`}
-                  aria-label="Send message"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                  </svg>
-                </button>
-              </div>
-            </motion.div>
-          </>
-        ) : (
-          <div className="w-full max-w-lg bg-[#1A1A1A] border border-[#00FF00] rounded-lg p-4 text-center">
-            <h2 className="text-lg md:text-xl font-mono text-[#00FF00] mb-3 animate-glitch">
-              HackChat_ Access Terminal
-            </h2>
-            <p className="font-mono text-[#00FFFF] mb-3 text-sm md:text-base">Enter the matrix.</p>
-            <button
-              onClick={login}
-              className="px-5 py-2 font-mono text-[#0A0A0A] bg-[#00FF00] hover:bg-[#00FFFF] transition-all duration-200 glitch flex items-center justify-center gap-2 mx-auto text-sm md:text-base min-w-[120px]"
-              aria-label="Sign in with Google"
-            >
-              <Image
-                src="https://www.svgrepo.com/show/475656/google-color.svg"
-                alt="Google"
-                width={16}
-                height={16}
-                className="w-4 h-4"
-                priority
+              )}
+              <ChatFeed
+                feed={feed}
+                user={user}
+                deleteMessage={deleteMessage}
+                feedRef={feedRef}
+                loadMore={loadMore}
+                isLoadingMore={isLoadingMore}
+                page={page}
               />
-              auth google
-            </button>
-          </div>
-        )}
+              <MessageInput
+                message={message}
+                setMessage={setMessage}
+                sendMessage={sendMessage}
+                isSending={isSending}
+                user={user}
+                db={db}
+                inputRef={inputRef}
+              />
+            </>
+          ) : (
+            <AuthSection login={login} />
+          )}
+        </main>
       </div>
-
-      {/* Custom CSS */}
       <style jsx global>{`
         @keyframes glitch {
           0% {
@@ -591,10 +688,11 @@ export default function Page() {
             text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
           }
         }
-        html, body {
+        html,
+        body {
           font-family: 'JetBrains Mono', monospace;
-          background: #0A0A0A;
-          color: #00FF00;
+          background: #0a0a0a;
+          color: #00ff00;
           margin: 0;
           padding: 0;
           overflow-x: hidden;
@@ -602,42 +700,27 @@ export default function Page() {
         .animate-glitch {
           animation: glitch 1s linear infinite;
         }
-        .glitch:hover {
-          animation: glitch 0.3s linear infinite;
-        }
-        button:focus,
-        input:focus {
-          outline: none;
-          border-color: #00FFFF;
-        }
-        button {
-          touch-action: manipulation;
-        }
-        [role="feed"] {
+        [role='feed'] {
           scroll-behavior: smooth;
           overscroll-behavior: contain;
           contain: layout;
         }
         @media (prefers-reduced-motion: reduce) {
-          .animate-glitch,
-          .glitch:hover {
+          .animate-glitch {
             animation: none;
             text-shadow: none;
           }
         }
         @media (max-width: 640px) {
           .min-h-screen {
-            padding-bottom: 60px;
+            padding-bottom: 80px;
           }
           .fixed.bottom-0 {
             bottom: env(safe-area-inset-bottom, 0);
           }
-          .h-[calc(100vh-180px)] {
-            height: calc(100vh - 140px - env(safe-area-inset-bottom, 0));
+          .h-[calc(100vh-200px)] {
+            height: calc(100vh - 160px - env(safe-area-inset-bottom, 0));
           }
-        }
-        .fixed.bottom-0 {
-          transition: padding-bottom 0.2s ease;
         }
       `}</style>
     </>
