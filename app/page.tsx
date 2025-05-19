@@ -238,8 +238,8 @@ function MessageInput({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-green-500"
-      style={{ transition: 'padding-bottom 0.2s ease' }}
+      className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-green-500 input-container"
+      style={{ transition: 'bottom 0.3s ease' }}
     >
       <div className="flex items-center gap-3 max-w-2xl p-3 mx-auto">
         <button
@@ -358,27 +358,33 @@ export default function Page() {
         const keyboardHeight = window.innerHeight - viewport.height;
         const isKeyboardOpen = keyboardHeight > 0;
 
-        const inputContainer = inputRef.current.parentElement?.parentElement;
+        const inputContainer = document.querySelector('.input-container') as HTMLElement;
         if (document.activeElement === inputRef.current && isKeyboardOpen) {
           if (inputContainer) {
-            inputContainer.style.paddingBottom = `${keyboardHeight + 16}px`;
+            // Adjust the 'bottom' property to push the input bar above the keyboard
+            inputContainer.style.bottom = `${keyboardHeight}px`;
           }
+          // Scroll the input into view
           const inputRect = inputRef.current.getBoundingClientRect();
           if (inputRect.bottom > viewport.height + viewport.offsetTop) {
             inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
           }
         } else if (inputContainer) {
-          inputContainer.style.paddingBottom = "16px";
+          // Reset the bottom position when the keyboard is closed
+          inputContainer.style.bottom = "0px";
         }
-      }, 100);
+      }, 300); // Increased delay to ensure keyboard animation completes
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
     window.addEventListener("resize", handleViewportChange);
 
     const handleFocus = () => handleViewportChange();
+    const handleBlur = () => handleViewportChange();
+
     if (inputRef.current) {
       inputRef.current.addEventListener("focus", handleFocus);
+      inputRef.current.addEventListener("blur", handleBlur);
     }
 
     return () => {
@@ -387,6 +393,7 @@ export default function Page() {
       window.removeEventListener("resize", handleViewportChange);
       if (inputRef.current) {
         inputRef.current.removeEventListener("focus", handleFocus);
+        inputRef.current.removeEventListener("blur", handleBlur);
       }
     };
   }, []);
@@ -715,8 +722,9 @@ export default function Page() {
           .min-h-screen {
             padding-bottom: 80px;
           }
-          .fixed.bottom-0 {
+          .input-container {
             bottom: env(safe-area-inset-bottom, 0);
+            transition: bottom 0.3s ease;
           }
           .h-[calc(100vh-200px)] {
             height: calc(100vh - 160px - env(safe-area-inset-bottom, 0));
