@@ -157,11 +157,23 @@ function ThoughtFeed({
 }) {
   return (
     <div
-      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-rose-50 border border-rose-300 rounded-lg shadow-lg h-[calc(100vh-200px)] flex flex-col gap-3 scroll-smooth"
+      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-rose-50 border border-rose-300 rounded-lg shadow-lg flex flex-col gap-3 scroll-smooth feed-container"
       ref={feedRef}
       role="feed"
       aria-live="polite"
     >
+      {feed.length >= 20 * page && (
+        <button
+          onClick={loadMore}
+          disabled={isLoadingMore}
+          className={`w-full p-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base ${
+            isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          aria-label="Load more thoughts"
+        >
+          💕 More Thoughts
+        </button>
+      )}
       <AnimatePresence initial={false}>
         {feed.map((thought) => (
           <motion.div
@@ -199,18 +211,6 @@ function ThoughtFeed({
           </motion.div>
         ))}
       </AnimatePresence>
-      {feed.length >= 20 * page && (
-        <button
-          onClick={loadMore}
-          disabled={isLoadingMore}
-          className={`w-full p-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base ${
-            isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-          aria-label="Load more thoughts"
-        >
-          💕 More Thoughts
-        </button>
-      )}
     </div>
   );
 }
@@ -238,10 +238,10 @@ function ThoughtInput({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed bottom-0 left-0 right-0 z-40 bg-rose-50 border-t border-rose-300 input-container"
-      style={{ transition: 'bottom 0.3s ease' }}
+      className="w-full max-w-2xl mx-auto p-3 bg-rose-50 border-t border-rose-300 input-container z-40"
+      style={{ transition: 'padding-bottom 0.3s ease' }}
     >
-      <div className="flex items-center gap-3 max-w-2xl p-3 mx-auto">
+      <div className="flex items-center gap-3">
         <button
           className="p-2 transition-colors duration-200 text-rose-600 hover:text-rose-700"
           aria-label="Attach file"
@@ -336,7 +336,8 @@ export default function Page() {
       setAuth(authInstance);
     } catch (error) {
       console.error("Failed to initialize Firebase:", error);
-      toast.error("Error: Connection to server failed. Retry.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error: Connection to server failed. ${errorMessage}`);
     }
   }, []);
 
@@ -349,8 +350,6 @@ export default function Page() {
 
       clearTimeout(timeout);
       timeout = setTimeout(() => {
-        if (!inputRef.current) return;
-
         const viewport = window.visualViewport || {
           height: window.innerHeight,
           offsetTop: 0,
@@ -359,39 +358,23 @@ export default function Page() {
         const isKeyboardOpen = keyboardHeight > 0;
 
         const inputContainer = document.querySelector('.input-container') as HTMLElement;
-        if (document.activeElement === inputRef.current && isKeyboardOpen) {
-          if (inputContainer) {
-            inputContainer.style.bottom = `${keyboardHeight}px`;
-          }
-          const inputRect = inputRef.current.getBoundingClientRect();
-          if (inputRect.bottom > viewport.height + viewport.offsetTop) {
-            inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-          }
+        if (isKeyboardOpen && inputContainer) {
+          // Adjust padding-bottom to push the input bar just above the keyboard
+          inputContainer.style.paddingBottom = `${keyboardHeight}px`;
         } else if (inputContainer) {
-          inputContainer.style.bottom = "0px";
+          // Reset padding when the keyboard is closed
+          inputContainer.style.paddingBottom = '0px';
         }
-      }, 300);
+      }, 100); // Reduced delay for smoother adjustment
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
     window.addEventListener("resize", handleViewportChange);
 
-    const handleFocus = () => handleViewportChange();
-    const handleBlur = () => handleViewportChange();
-
-    if (inputRef.current) {
-      inputRef.current.addEventListener("focus", handleFocus);
-      inputRef.current.addEventListener("blur", handleBlur);
-    }
-
     return () => {
       clearTimeout(timeout);
       window.visualViewport?.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("resize", handleViewportChange);
-      if (inputRef.current) {
-        inputRef.current.removeEventListener("focus", handleFocus);
-        inputRef.current.removeEventListener("blur", handleBlur);
-      }
     };
   }, []);
 
@@ -419,7 +402,8 @@ export default function Page() {
       toast.success("Welcome, darling!");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Error: Access denied. Try again.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error: Access denied. ${errorMessage}`);
     }
   };
 
@@ -432,7 +416,8 @@ export default function Page() {
       toast.success("Goodbye, sweetheart!");
     } catch (error) {
       console.error("Logout error:", error);
-      toast.error("Error: Logout failed. Try again.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error: Logout failed. ${errorMessage}`);
     }
   };
 
@@ -467,7 +452,8 @@ export default function Page() {
           toast.success("Name saved, love!");
         } catch (error) {
           console.error("Failed to save nickname", error);
-          toast.error("Error: Name update failed.");
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          toast.error(`Error: Name update failed. ${errorMessage}`);
         }
       }, 500),
     []
@@ -505,11 +491,12 @@ export default function Page() {
             setThought("");
             toast.success("Thought shared!");
             if (feedRef.current) {
-              feedRef.current.scrollTop = feedRef.current.scrollHeight;
+              feedRef.current.scrollTop = 0; // Scroll to top to see the newest thought
             }
           } catch (error) {
-            console.error("Send thought failed", error);
-            toast.error("Error: Send failed. Try again.");
+            console.error("Send thought failed:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            toast.error(`Error: Send failed. ${errorMessage}`);
           } finally {
             setIsSending(false);
           }
@@ -529,7 +516,8 @@ export default function Page() {
         toast.success("Thought removed!");
       } catch (error) {
         console.error("Delete failed", error);
-        toast.error("Error: Delete failed. Try again.");
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast.error(`Error: Delete failed. ${errorMessage}`);
       }
     }
   };
@@ -555,12 +543,12 @@ export default function Page() {
     return () => unsub();
   }, [auth, db]);
 
-  // Real-time thoughts with pagination
+  // Real-time thoughts with pagination (newest at top)
   useEffect(() => {
     if (!db) return;
     const q = query(
       collection(db, "thoughts"),
-      orderBy("createdAt", "desc"),
+      orderBy("createdAt", "asc"),
       limit(20 * page)
     );
     const unsub = onSnapshot(q, (snapshot) => {
@@ -571,11 +559,12 @@ export default function Page() {
       } as Thought));
       setFeed(thoughts);
       if (feedRef.current) {
-        feedRef.current.scrollTop = feedRef.current.scrollHeight;
+        feedRef.current.scrollTop = 0;
       }
     }, (error) => {
       console.error("Snapshot error:", error);
-      toast.error("Error: Failed to load thoughts.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
     });
     return () => unsub();
   }, [db, page]);
@@ -688,6 +677,16 @@ export default function Page() {
         .animate-pulse {
           animation: pulse 2s ease-in-out infinite;
         }
+        .feed-container {
+          height: calc(100vh - 200px - 60px);
+          margin-bottom: 0;
+        }
+        .input-container {
+          position: sticky;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
         [role='feed'] {
           scroll-behavior: smooth;
           overscroll-behavior: contain;
@@ -700,14 +699,13 @@ export default function Page() {
         }
         @media (max-width: 640px) {
           .min-h-screen {
-            padding-bottom: 80px;
+            padding-bottom: 0;
+          }
+          .feed-container {
+            height: calc(100vh - 160px - 60px - env(safe-area-inset-bottom, 0));
           }
           .input-container {
             bottom: env(safe-area-inset-bottom, 0);
-            transition: bottom 0.3s ease;
-          }
-          .h-[calc(100vh-200px)] {
-            height: calc(100vh - 160px - env(safe-area-inset-bottom, 0));
           }
         }
       `}</style>
