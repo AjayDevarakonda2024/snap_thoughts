@@ -61,7 +61,7 @@ interface User {
   nickname?: string;
 }
 
-interface Message {
+interface Thought {
   id: string;
   text: string;
   userId: string;
@@ -72,21 +72,21 @@ interface Message {
 // Header Component
 function Header({ user, logout }: { user: User | null; logout: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between w-full px-4 py-3 bg-gray-950 border-b border-green-500 shadow-sm">
-      <h1 className="text-xl font-bold text-green-500 md:text-2xl font-mono animate-glitch">
-        HackChat_
+    <header className="sticky top-0 z-30 flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-rose-300 shadow-sm">
+      <h1 className="text-xl font-bold text-rose-600 md:text-2xl font-cursive animate-pulse">
+        Honey Thought
       </h1>
       {user && (
         <div className="flex items-center gap-3">
-          <p className="text-sm text-green-500 font-mono md:text-base">
+          <p className="text-sm text-rose-600 font-cursive md:text-base">
             {user.nickname || user.displayName || user.email}
           </p>
           <button
             onClick={logout}
-            className="p-2 transition-transform duration-200 transform bg-green-500 rounded-full hover:bg-cyan-400 hover:scale-105 active:scale-95"
+            className="p-2 transition-transform duration-200 transform bg-rose-400 rounded-full hover:bg-rose-500 hover:scale-105 active:scale-95"
             aria-label="Log out"
           >
-            <svg className="w-4 h-4 text-gray-950" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           </button>
@@ -115,41 +115,41 @@ function NicknameSection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-md p-4 mb-4 bg-gray-900 border border-green-500 rounded-lg shadow-lg"
+      className="w-full max-w-md p-4 mb-4 bg-rose-50 border border-rose-300 rounded-lg shadow-lg"
     >
-      <p className="mb-2 text-sm text-green-500 font-mono md:text-base">{'>'} Set hacker handle</p>
+      <p className="mb-2 text-sm text-rose-600 font-cursive md:text-base">💕 Choose your sweet name</p>
       <input
         type="text"
-        placeholder="e.g. CyberPunk"
-        className="w-full p-3 text-sm text-green-500 transition-all duration-200 bg-gray-950 border border-green-500 rounded-md font-mono md:text-base focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50"
+        placeholder="e.g. Sweetheart"
+        className="w-full p-3 text-sm text-rose-600 transition-all duration-200 bg-white border border-rose-300 rounded-md font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50"
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
-        aria-label="Handle input"
+        aria-label="Nickname input"
       />
       <button
         onClick={() => saveNickname(nickname, user, db)}
-        className="px-4 py-2 mt-3 text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base"
-        aria-label="Save handle"
+        className="px-4 py-2 mt-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base"
+        aria-label="Save nickname"
       >
-        {'>'} Save
+        💕 Save
       </button>
     </motion.div>
   );
 }
 
-// Chat Feed Component
-function ChatFeed({
+// Thought Feed Component
+function ThoughtFeed({
   feed,
   user,
-  deleteMessage,
+  deleteThought,
   feedRef,
   loadMore,
   isLoadingMore,
   page,
 }: {
-  feed: Message[];
+  feed: Thought[];
   user: User | null;
-  deleteMessage: (id: string) => void;
+  deleteThought: (id: string) => void;
   feedRef: RefObject<HTMLDivElement | null>;
   loadMore: () => void;
   isLoadingMore: boolean;
@@ -157,42 +157,42 @@ function ChatFeed({
 }) {
   return (
     <div
-      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-gray-900 border border-green-500 rounded-lg shadow-lg h-[calc(100vh-200px)] flex flex-col gap-3 scroll-smooth"
+      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-rose-50 border border-rose-300 rounded-lg shadow-lg h-[calc(100vh-200px)] flex flex-col gap-3 scroll-smooth"
       ref={feedRef}
       role="feed"
       aria-live="polite"
     >
       <AnimatePresence initial={false}>
-        {feed.map((msg) => (
+        {feed.map((thought) => (
           <motion.div
-            key={msg.id}
+            key={thought.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className={`flex ${msg.userId === user?.uid ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${thought.userId === user?.uid ? 'justify-end' : 'justify-start'}`}
           >
             <div
               className={`max-w-[70%] p-3 rounded-2xl shadow-md ${
-                msg.userId === user?.uid
-                  ? 'bg-green-500/20 text-green-500 rounded-br-sm'
-                  : 'bg-cyan-400/20 text-cyan-400 rounded-bl-sm'
+                thought.userId === user?.uid
+                  ? 'bg-rose-200 text-rose-600 rounded-br-sm'
+                  : 'bg-pink-100 text-pink-600 rounded-bl-sm'
               }`}
             >
-              <p className="mb-1 text-xs font-mono opacity-80">
-                {msg.nickname || 'Anon'} |{' '}
-                {msg.createdAt && msg.createdAt.toDate
-                  ? format(msg.createdAt.toDate(), 'HH:mm')
-                  : 'Unknown'}
+              <p className="mb-1 text-xs font-cursive opacity-80">
+                {thought.nickname || 'Darling'} |{' '}
+                {thought.createdAt && thought.createdAt.toDate
+                  ? format(thought.createdAt.toDate(), 'HH:mm')
+                  : 'Timeless'}
               </p>
-              <p className="text-sm font-mono whitespace-pre-wrap md:text-base">{msg.text}</p>
-              {msg.userId === user?.uid && (
+              <p className="text-sm font-cursive whitespace-pre-wrap md:text-base">{thought.text}</p>
+              {thought.userId === user?.uid && (
                 <button
-                  onClick={() => deleteMessage(msg.id)}
-                  className="mt-1 text-xs font-mono text-red-500 transition-colors duration-200 hover:text-red-600"
-                  aria-label="Delete message"
+                  onClick={() => deleteThought(thought.id)}
+                  className="mt-1 text-xs font-cursive text-red-600 transition-colors duration-200 hover:text-red-700"
+                  aria-label="Delete thought"
                 >
-                  Delete
+                  Remove
                 </button>
               )}
             </div>
@@ -203,31 +203,31 @@ function ChatFeed({
         <button
           onClick={loadMore}
           disabled={isLoadingMore}
-          className={`w-full p-3 text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base ${
+          className={`w-full p-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base ${
             isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''
           }`}
-          aria-label="Load more messages"
+          aria-label="Load more thoughts"
         >
-          {'>'} Load More
+          💕 More Thoughts
         </button>
       )}
     </div>
   );
 }
 
-// Message Input Component
-function MessageInput({
-  message,
-  setMessage,
-  sendMessage,
+// Thought Input Component
+function ThoughtInput({
+  thought,
+  setThought,
+  sendThought,
   isSending,
   user,
   db,
   inputRef,
 }: {
-  message: string;
-  setMessage: (value: string) => void;
-  sendMessage: (message: string, user: User | null, db: Firestore | null) => void;
+  thought: string;
+  setThought: (value: string) => void;
+  sendThought: (thought: string, user: User | null, db: Firestore | null) => void;
   isSending: boolean;
   user: User | null;
   db: Firestore | null;
@@ -238,12 +238,12 @@ function MessageInput({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-green-500 input-container"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-rose-50 border-t border-rose-300 input-container"
       style={{ transition: 'bottom 0.3s ease' }}
     >
       <div className="flex items-center gap-3 max-w-2xl p-3 mx-auto">
         <button
-          className="p-2 transition-colors duration-200 text-green-500 hover:text-cyan-400"
+          className="p-2 transition-colors duration-200 text-rose-600 hover:text-rose-700"
           aria-label="Attach file"
           disabled
         >
@@ -253,23 +253,23 @@ function MessageInput({
         </button>
         <input
           ref={inputRef}
-          placeholder="Type a message..."
-          className="flex-1 p-3 text-sm text-green-500 transition-all duration-200 bg-gray-950 border border-green-500 rounded-full font-mono md:text-base focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Share a sweet thought..."
+          className="flex-1 p-3 text-sm text-rose-600 transition-all duration-200 bg-white border border-rose-300 rounded-full font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50"
+          value={thought}
+          onChange={(e) => setThought(e.target.value)}
           maxLength={500}
-          aria-label="Message input"
+          aria-label="Thought input"
         />
         <button
-          onClick={() => sendMessage(message, user, db)}
-          disabled={isSending || !message.trim()}
-          className={`p-2 transition-transform duration-200 transform bg-green-500 rounded-full hover:bg-cyan-400 hover:scale-105 active:scale-95 text-gray-950 ${
-            isSending || !message.trim() ? 'opacity-50 cursor-not-allowed' : ''
+          onClick={() => sendThought(thought, user, db)}
+          disabled={isSending || !thought.trim()}
+          className={`p-2 transition-transform duration-200 transform bg-rose-400 rounded-full hover:bg-rose-500 hover:scale-105 active:scale-95 text-white ${
+            isSending || !thought.trim() ? 'opacity-50 cursor-not-allowed' : ''
           }`}
-          aria-label="Send message"
+          aria-label="Send thought"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
           </svg>
         </button>
       </div>
@@ -284,15 +284,15 @@ function AuthSection({ login }: { login: () => void }) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-md p-6 text-center bg-gray-900 border border-green-500 rounded-lg shadow-lg"
+      className="w-full max-w-md p-6 text-center bg-rose-50 border border-rose-300 rounded-lg shadow-lg"
     >
-      <h2 className="mb-3 text-lg font-mono text-green-500 md:text-xl animate-glitch">
-        HackChat_ Access Terminal
+      <h2 className="mb-3 text-lg font-cursive text-rose-600 md:text-xl animate-pulse">
+        Honey Thought
       </h2>
-      <p className="mb-4 text-sm text-cyan-400 font-mono md:text-base">Enter the matrix.</p>
+      <p className="mb-4 text-sm text-pink-600 font-cursive md:text-base">Share your heart with us.</p>
       <button
         onClick={login}
-        className="flex items-center justify-center gap-2 px-5 py-2 mx-auto text-sm font-mono text-gray-950 transition-transform duration-200 transform bg-green-500 rounded-md hover:bg-cyan-400 hover:scale-105 active:scale-95 md:text-base min-w-[140px]"
+        className="flex items-center justify-center gap-2 px-5 py-2 mx-auto text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base min-w-[140px]"
         aria-label="Sign in with Google"
       >
         <Image
@@ -303,7 +303,7 @@ function AuthSection({ login }: { login: () => void }) {
           className="w-4 h-4"
           priority
         />
-        Auth Google
+        Join with Google
       </button>
     </motion.div>
   );
@@ -312,8 +312,8 @@ function AuthSection({ login }: { login: () => void }) {
 // Main Component
 export default function Page() {
   const [user, setUser] = useState<User | null>(null);
-  const [message, setMessage] = useState("");
-  const [feed, setFeed] = useState<Message[]>([]);
+  const [thought, setThought] = useState("");
+  const [feed, setFeed] = useState<Thought[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [nickname, setNickname] = useState<string>("");
@@ -361,19 +361,16 @@ export default function Page() {
         const inputContainer = document.querySelector('.input-container') as HTMLElement;
         if (document.activeElement === inputRef.current && isKeyboardOpen) {
           if (inputContainer) {
-            // Adjust the 'bottom' property to push the input bar above the keyboard
             inputContainer.style.bottom = `${keyboardHeight}px`;
           }
-          // Scroll the input into view
           const inputRect = inputRef.current.getBoundingClientRect();
           if (inputRect.bottom > viewport.height + viewport.offsetTop) {
             inputRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
           }
         } else if (inputContainer) {
-          // Reset the bottom position when the keyboard is closed
           inputContainer.style.bottom = "0px";
         }
-      }, 300); // Increased delay to ensure keyboard animation completes
+      }, 300);
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
@@ -419,7 +416,7 @@ export default function Page() {
       const latestUserDoc = await getDoc(userRef);
       const data = latestUserDoc.data();
       setUser({ ...currentUser, nickname: data?.nickname || "" });
-      toast.success("Access granted!");
+      toast.success("Welcome, darling!");
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Error: Access denied. Try again.");
@@ -432,7 +429,7 @@ export default function Page() {
     try {
       await signOut(auth);
       setUser(null);
-      toast.success("Session terminated!");
+      toast.success("Goodbye, sweetheart!");
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Error: Logout failed. Try again.");
@@ -448,7 +445,7 @@ export default function Page() {
           allowedAttributes: {},
         });
         if (cleanNickname === "" || cleanNickname.length > 20 || !/^[a-zA-Z0-9_-]+$/.test(cleanNickname)) {
-          return toast.error("Error: Handle must be 1-20 chars, letters, numbers, _, or -.");
+          return toast.error("Error: Name must be 1-20 chars, letters, numbers, _, or -.");
         }
         if (!user) return toast.error("Error: Must be logged in.");
         if (!db) return toast.error("Error: Database offline.");
@@ -458,8 +455,8 @@ export default function Page() {
           await updateDoc(userRef, { nickname: cleanNickname });
           setUser((prev) => ({ ...prev!, nickname: cleanNickname }));
 
-          const messagesRef = collection(db, "messages");
-          const q = query(messagesRef, where("userId", "==", user.uid));
+          const thoughtsRef = collection(db, "thoughts");
+          const q = query(thoughtsRef, where("userId", "==", user.uid));
           const snapshot = await getDocs(q);
 
           const batch = writeBatch(db);
@@ -467,27 +464,27 @@ export default function Page() {
             batch.update(doc.ref, { nickname: cleanNickname });
           });
           await batch.commit();
-          toast.success("Handle updated!");
+          toast.success("Name saved, love!");
         } catch (error) {
           console.error("Failed to save nickname", error);
-          toast.error("Error: Handle update failed.");
+          toast.error("Error: Name update failed.");
         }
       }, 500),
     []
   );
 
-  // Send a message (Debounced)
-  const sendMessage = useMemo(
+  // Send a thought (Debounced)
+  const sendThought = useMemo(
     () =>
       debounce(
-        async (message: string, user: User | null, db: Firestore | null) => {
+        async (thought: string, user: User | null, db: Firestore | null) => {
           setIsSending(true);
-          const cleanMessage = sanitizeHtml(message.trim(), {
+          const cleanThought = sanitizeHtml(thought.trim(), {
             allowedTags: [],
             allowedAttributes: {},
           });
-          if (cleanMessage === "" || cleanMessage.length > 500) {
-            toast.error("Error: Message must be 1-500 chars.");
+          if (cleanThought === "" || cleanThought.length > 500) {
+            toast.error("Error: Thought must be 1-500 chars.");
             setIsSending(false);
             return;
           }
@@ -498,20 +495,20 @@ export default function Page() {
           }
 
           try {
-            await addDoc(collection(db, "messages"), {
-              text: cleanMessage,
+            await addDoc(collection(db, "thoughts"), {
+              text: cleanThought,
               userId: user.uid,
-              nickname: user.nickname || user.displayName || "Anon",
+              nickname: user.nickname || user.displayName || "Darling",
               createdAt: serverTimestamp(),
             });
 
-            setMessage("");
-            toast.success("Message sent!");
+            setThought("");
+            toast.success("Thought shared!");
             if (feedRef.current) {
               feedRef.current.scrollTop = feedRef.current.scrollHeight;
             }
           } catch (error) {
-            console.error("Send message failed", error);
+            console.error("Send thought failed", error);
             toast.error("Error: Send failed. Try again.");
           } finally {
             setIsSending(false);
@@ -522,14 +519,14 @@ export default function Page() {
     []
   );
 
-  // Delete a message
-  const deleteMessage = async (id: string) => {
+  // Delete a thought
+  const deleteThought = async (id: string) => {
     if (!db) return toast.error("Error: Database offline.");
-    if (window.confirm("Delete this message?")) {
+    if (window.confirm("Remove this thought?")) {
       try {
-        const messageRef = doc(db, "messages", id);
-        await deleteDoc(messageRef);
-        toast.success("Message deleted!");
+        const thoughtRef = doc(db, "thoughts", id);
+        await deleteDoc(thoughtRef);
+        toast.success("Thought removed!");
       } catch (error) {
         console.error("Delete failed", error);
         toast.error("Error: Delete failed. Try again.");
@@ -558,27 +555,27 @@ export default function Page() {
     return () => unsub();
   }, [auth, db]);
 
-  // Real-time messages with pagination
+  // Real-time thoughts with pagination
   useEffect(() => {
     if (!db) return;
     const q = query(
-      collection(db, "messages"),
+      collection(db, "thoughts"),
       orderBy("createdAt", "desc"),
       limit(20 * page)
     );
     const unsub = onSnapshot(q, (snapshot) => {
-      const messages: Message[] = snapshot.docs.map((doc) => ({
+      const thoughts: Thought[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt || null,
-      } as Message));
-      setFeed(messages);
+      } as Thought));
+      setFeed(thoughts);
       if (feedRef.current) {
         feedRef.current.scrollTop = feedRef.current.scrollHeight;
       }
     }, (error) => {
       console.error("Snapshot error:", error);
-      toast.error("Error: Failed to load messages.");
+      toast.error("Error: Failed to load thoughts.");
     });
     return () => unsub();
   }, [db, page]);
@@ -586,12 +583,12 @@ export default function Page() {
   // Clean up debounced functions
   useEffect(() => {
     return () => {
-      sendMessage.cancel();
+      sendThought.cancel();
       saveNickname.cancel();
     };
-  }, [sendMessage, saveNickname]);
+  }, [sendThought, saveNickname]);
 
-  // Load more messages
+  // Load more thoughts
   const loadMore = async () => {
     setIsLoadingMore(true);
     setPage((prev) => prev + 1);
@@ -605,27 +602,27 @@ export default function Page() {
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
-        <title>HackChat_</title>
-        <meta name="description" content="Encrypted chat for hackers." />
+        <title>Honey Thought</title>
+        <meta name="description" content="Share your sweetest thoughts with love." />
         <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap"
           rel="stylesheet"
         />
       </Head>
       <ToastContainer
         position="top-right"
         autoClose={3000}
-        theme="dark"
-        toastClassName="bg-gray-950 border border-green-500 text-green-500 font-mono rounded-lg text-sm shadow-lg"
-        progressClassName="bg-green-500"
+        theme="light"
+        toastClassName="bg-rose-50 border border-rose-300 text-rose-600 font-cursive rounded-lg text-sm shadow-lg"
+        progressClassName="bg-rose-400"
       />
-      <div className="flex flex-col min-h-screen bg-gray-950 font-mono">
+      <div className="flex flex-col min-h-screen bg-gradient-to-b from-pink-50 to-rose-50 font-cursive">
         <Header user={user} logout={logout} />
         <main className="flex flex-col items-center flex-1 px-4 py-6">
           {loading || !firebaseApp ? (
             <div className="flex items-center justify-center h-40" aria-live="polite">
               <div
-                className="w-10 h-10 border-4 border-green-500 rounded-full border-t-transparent animate-spin"
+                className="w-10 h-10 border-4 border-rose-400 rounded-full border-t-transparent animate-spin"
                 aria-label="Connecting to server"
               ></div>
             </div>
@@ -640,19 +637,19 @@ export default function Page() {
                   db={db}
                 />
               )}
-              <ChatFeed
+              <ThoughtFeed
                 feed={feed}
                 user={user}
-                deleteMessage={deleteMessage}
+                deleteThought={deleteThought}
                 feedRef={feedRef}
                 loadMore={loadMore}
                 isLoadingMore={isLoadingMore}
                 page={page}
               />
-              <MessageInput
-                message={message}
-                setMessage={setMessage}
-                sendMessage={sendMessage}
+              <ThoughtInput
+                thought={thought}
+                setThought={setThought}
+                sendThought={sendThought}
                 isSending={isSending}
                 user={user}
                 db={db}
@@ -665,47 +662,31 @@ export default function Page() {
         </main>
       </div>
       <style jsx global>{`
-        @keyframes glitch {
+        @keyframes pulse {
           0% {
-            transform: translate(0);
-            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
-          }
-          14% {
-            transform: translate(-0.05em, 0.05em);
-            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
-          }
-          15% {
-            transform: translate(-0.05em, 0.05em);
-            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
-          }
-          49% {
-            transform: translate(0);
-            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
+            transform: scale(1);
+            opacity: 1;
           }
           50% {
-            transform: translate(0.05em, -0.05em);
-            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
-          }
-          99% {
-            transform: translate(0);
-            text-shadow: 0.05em 0 0 #00ff00, -0.05em 0 0 #00ffff;
+            transform: scale(1.05);
+            opacity: 0.9;
           }
           100% {
-            transform: translate(0);
-            text-shadow: -0.05em 0 0 #00ff00, 0.05em 0 0 #00ffff;
+            transform: scale(1);
+            opacity: 1;
           }
         }
         html,
         body {
-          font-family: 'JetBrains Mono', monospace;
-          background: #0a0a0a;
-          color: #00ff00;
+          font-family: 'Parisienne', cursive;
+          background: linear-gradient(to bottom, #fef2f2, #fefce8);
+          color: #be123c;
           margin: 0;
           padding: 0;
           overflow-x: hidden;
         }
-        .animate-glitch {
-          animation: glitch 1s linear infinite;
+        .animate-pulse {
+          animation: pulse 2s ease-in-out infinite;
         }
         [role='feed'] {
           scroll-behavior: smooth;
@@ -713,9 +694,8 @@ export default function Page() {
           contain: layout;
         }
         @media (prefers-reduced-motion: reduce) {
-          .animate-glitch {
+          .animate-pulse {
             animation: none;
-            text-shadow: none;
           }
         }
         @media (max-width: 640px) {
