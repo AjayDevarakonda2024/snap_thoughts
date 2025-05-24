@@ -16,7 +16,6 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  limit,
   Timestamp,
   writeBatch,
   getDocs,
@@ -40,7 +39,7 @@ import { format } from "date-fns";
 import Head from "next/head";
 import { RefObject } from "react";
 
-// Firebase config (Move to .env.local in production)
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD3f6Jj6u1xWDRop7MVk-NWhLbwqnPeHfA",
   authDomain: "snap-thoughts-d1423.firebaseapp.com",
@@ -74,7 +73,7 @@ function Header({ user, logout }: { user: User | null; logout: () => void }) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-rose-300 shadow-sm">
       <h1 className="text-xl font-bold text-rose-600 md:text-2xl font-cursive animate-pulse">
-        Honey Thought
+        Honey Chat
       </h1>
       {user && (
         <div className="flex items-center gap-3">
@@ -143,17 +142,11 @@ function ThoughtFeed({
   user,
   deleteThought,
   feedRef,
-  loadMore,
-  isLoadingMore,
-  page,
 }: {
   feed: Thought[];
   user: User | null;
   deleteThought: (id: string) => void;
   feedRef: RefObject<HTMLDivElement | null>;
-  loadMore: () => void;
-  isLoadingMore: boolean;
-  page: number;
 }) {
   return (
     <div
@@ -162,18 +155,6 @@ function ThoughtFeed({
       role="feed"
       aria-live="polite"
     >
-      {feed.length >= 20 * page && (
-        <button
-          onClick={loadMore}
-          disabled={isLoadingMore}
-          className={`w-full p-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base ${
-            isLoadingMore ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-          aria-label="Load more thoughts"
-        >
-          💕 More Thoughts
-        </button>
-      )}
       <AnimatePresence initial={false}>
         {feed.map((thought) => (
           <motion.div
@@ -287,7 +268,7 @@ function AuthSection({ login }: { login: () => void }) {
       className="w-full max-w-md p-6 text-center bg-rose-50 border border-rose-300 rounded-lg shadow-lg"
     >
       <h2 className="mb-3 text-lg font-cursive text-rose-600 md:text-xl animate-pulse">
-        Honey Thought
+        Honey Chat
       </h2>
       <p className="mb-4 text-sm text-pink-600 font-cursive md:text-base">Share your heart with us.</p>
       <button
@@ -317,8 +298,6 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [nickname, setNickname] = useState<string>("");
-  const [page, setPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
@@ -359,13 +338,11 @@ export default function Page() {
 
         const inputContainer = document.querySelector('.input-container') as HTMLElement;
         if (isKeyboardOpen && inputContainer) {
-          // Adjust padding-bottom to push the input bar just above the keyboard
           inputContainer.style.paddingBottom = `${keyboardHeight}px`;
         } else if (inputContainer) {
-          // Reset padding when the keyboard is closed
           inputContainer.style.paddingBottom = '0px';
         }
-      }, 100); // Reduced delay for smoother adjustment
+      }, 100);
     };
 
     window.visualViewport?.addEventListener("resize", handleViewportChange);
@@ -491,7 +468,7 @@ export default function Page() {
             setThought("");
             toast.success("Thought shared!");
             if (feedRef.current) {
-              feedRef.current.scrollTop = feedRef.current.scrollHeight; // Scroll to bottom
+              feedRef.current.scrollTop = feedRef.current.scrollHeight;
             }
           } catch (error) {
             console.error("Send thought failed:", error);
@@ -543,31 +520,38 @@ export default function Page() {
     return () => unsub();
   }, [auth, db]);
 
-  // Real-time thoughts with pagination (newest at top)
+  // Real-time thoughts (load all, newest at bottom)
   useEffect(() => {
-  if (!db) return;
-  const q = query(
-    collection(db, "thoughts"),
-    orderBy("createdAt", "asc"), // Newest first
-    limit(20 * page)
-  );
-  const unsub = onSnapshot(q, (snapshot) => {
-    const thoughts: Thought[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt || null,
-    } as Thought));
-    setFeed(thoughts);
-    if (feedRef.current) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight; // Scroll to bottom
-    }
-  }, (error) => {
-    console.error("Snapshot error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
-  });
-  return () => unsub();
-}, [db, page]);
+    if (!db) return;
+    const q = query(
+      collection(db, "thoughts"),
+      orderBy("createdAt", "asc")
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const thoughts: Thought[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt || null,
+      } as Thought));
+      setFeed(thoughts);
+      // Defer scroll to ensure DOM is updated
+      setTimeout(() => {
+        if (feedRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = feedRef.current;
+          // Only scroll if user is near the bottom (within 100px)
+          const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+          if (isNearBottom) {
+            feedRef.current.scrollTop = feedRef.current.scrollHeight;
+          }
+        }
+      }, 0);
+    }, (error) => {
+      console.error("Snapshot error:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
+    });
+    return () => unsub();
+  }, [db]);
 
   // Clean up debounced functions
   useEffect(() => {
@@ -577,13 +561,6 @@ export default function Page() {
     };
   }, [sendThought, saveNickname]);
 
-  // Load more thoughts
-  const loadMore = async () => {
-    setIsLoadingMore(true);
-    setPage((prev) => prev + 1);
-    setIsLoadingMore(false);
-  };
-
   return (
     <>
       <Head>
@@ -591,7 +568,7 @@ export default function Page() {
           name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
-        <title>Honey Thought</title>
+        <title>Honey Chat</title>
         <meta name="description" content="Share your sweetest thoughts with love." />
         <link
           href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap"
@@ -631,9 +608,6 @@ export default function Page() {
                 user={user}
                 deleteThought={deleteThought}
                 feedRef={feedRef}
-                loadMore={loadMore}
-                isLoadingMore={isLoadingMore}
-                page={page}
               />
               <ThoughtInput
                 thought={thought}
