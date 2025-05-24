@@ -491,7 +491,7 @@ export default function Page() {
             setThought("");
             toast.success("Thought shared!");
             if (feedRef.current) {
-              feedRef.current.scrollTop = 0; // Scroll to top to see the newest thought
+              feedRef.current.scrollTop = feedRef.current.scrollHeight; // Scroll to bottom
             }
           } catch (error) {
             console.error("Send thought failed:", error);
@@ -545,29 +545,29 @@ export default function Page() {
 
   // Real-time thoughts with pagination (newest at top)
   useEffect(() => {
-    if (!db) return;
-    const q = query(
-      collection(db, "thoughts"),
-      orderBy("createdAt", "asc"),
-      limit(20 * page)
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const thoughts: Thought[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt || null,
-      } as Thought));
-      setFeed(thoughts);
-      if (feedRef.current) {
-        feedRef.current.scrollTop = 0;
-      }
-    }, (error) => {
-      console.error("Snapshot error:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
-    });
-    return () => unsub();
-  }, [db, page]);
+  if (!db) return;
+  const q = query(
+    collection(db, "thoughts"),
+    orderBy("createdAt", "asc"), // Newest first
+    limit(20 * page)
+  );
+  const unsub = onSnapshot(q, (snapshot) => {
+    const thoughts: Thought[] = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt || null,
+    } as Thought));
+    setFeed(thoughts);
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight; // Scroll to bottom
+    }
+  }, (error) => {
+    console.error("Snapshot error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
+  });
+  return () => unsub();
+}, [db, page]);
 
   // Clean up debounced functions
   useEffect(() => {
