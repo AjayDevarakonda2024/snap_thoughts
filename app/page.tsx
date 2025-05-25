@@ -71,27 +71,34 @@ interface Thought {
 // Header Component
 function Header({ user, logout }: { user: User | null; logout: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-pink-100 to-rose-100 border-b border-rose-300 shadow-sm">
-      <h1 className="text-xl font-bold text-rose-600 md:text-2xl font-cursive animate-pulse">
+    <motion.header
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="sticky top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-rose-100 to-pink-100 border-b border-rose-200 shadow-sm"
+    >
+      <h1 className="text-xl font-bold text-rose-600 md:text-2xl font-cursive">
         Honey Chat
       </h1>
       {user && (
         <div className="flex items-center gap-3">
-          <p className="text-sm text-rose-600 font-cursive md:text-base">
+          <p className="text-sm text-rose-700 font-cursive md:text-base truncate max-w-[150px]">
             {user.nickname || user.displayName || user.email}
           </p>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
             onClick={logout}
-            className="p-2 transition-transform duration-200 transform bg-rose-400 rounded-full hover:bg-rose-500 hover:scale-105 active:scale-95"
+            className="p-2 bg-rose-500 rounded-full text-white transition-colors duration-200 hover:bg-rose-600 focus:ring-2 focus:ring-rose-400 focus:outline-none"
             aria-label="Log out"
           >
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16 17v-2H9v-2h7V9l4 4-4 4zm-5 3H5c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h6v2H5v12h6v2z" />
             </svg>
-          </button>
+          </motion.button>
         </div>
       )}
-    </header>
+    </motion.header>
   );
 }
 
@@ -113,25 +120,29 @@ function NicknameSection({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="w-full max-w-md p-4 mb-4 bg-rose-50 border border-rose-300 rounded-lg shadow-lg"
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="w-full max-w-md p-4 mb-6 bg-white/80 backdrop-blur-sm border border-rose-200 rounded-xl shadow-md"
     >
-      <p className="mb-2 text-sm text-rose-600 font-cursive md:text-base">💕 Choose your sweet name</p>
+      <p className="mb-2 text-sm text-rose-600 font-cursive md:text-base">
+        💖 Choose your sweet nickname
+      </p>
       <input
         type="text"
         placeholder="e.g. Sweetheart"
-        className="w-full p-3 text-sm text-rose-600 transition-all duration-200 bg-white border border-rose-300 rounded-md font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50"
+        className="w-full p-3 text-sm text-rose-700 bg-rose-50 border border-rose-300 rounded-lg font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all duration-200"
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
         aria-label="Nickname input"
       />
-      <button
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => saveNickname(nickname, user, db)}
-        className="px-4 py-2 mt-3 text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base"
+        className="w-full px-4 py-2 mt-3 text-sm font-cursive text-white bg-rose-500 rounded-lg hover:bg-rose-600 focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all duration-200 md:text-base"
         aria-label="Save nickname"
       >
-        💕 Save
-      </button>
+        💕 Save Nickname
+      </motion.button>
     </motion.div>
   );
 }
@@ -149,11 +160,14 @@ function ThoughtFeed({
   feedRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div
-      className="w-full max-w-2xl p-4 mb-4 overflow-y-auto bg-rose-50 border border-rose-300 rounded-lg shadow-lg flex flex-col gap-3 scroll-smooth feed-container"
+    <motion.div
+      className="w-full max-w-2xl p-4 mb-6 bg-white/80 backdrop-blur-sm border border-rose-200 rounded-xl shadow-md flex flex-col gap-4 overflow-y-auto scroll-smooth feed-container"
       ref={feedRef}
       role="feed"
       aria-live="polite"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
     >
       <AnimatePresence initial={false}>
         {feed.map((thought) => (
@@ -162,37 +176,39 @@ function ThoughtFeed({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className={`flex ${thought.userId === user?.uid ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[70%] p-3 rounded-2xl shadow-md ${
+              className={`max-w-[75%] p-4 rounded-2xl shadow-sm ${
                 thought.userId === user?.uid
-                  ? 'bg-rose-200 text-rose-600 rounded-br-sm'
-                  : 'bg-pink-100 text-pink-600 rounded-bl-sm'
+                  ? 'bg-rose-200 text-rose-700 rounded-br-none'
+                  : 'bg-pink-100 text-pink-700 rounded-bl-none'
               }`}
             >
-              <p className="mb-1 text-xs font-cursive opacity-80">
+              <p className="mb-1 text-xs font-cursive text-rose-600/80">
                 {thought.nickname || 'Darling'} |{' '}
                 {thought.createdAt && thought.createdAt.toDate
-                  ? format(thought.createdAt.toDate(), 'HH:mm')
+                  ? format(thought.createdAt.toDate(), 'MMM d, HH:mm')
                   : 'Timeless'}
               </p>
               <p className="text-sm font-cursive whitespace-pre-wrap md:text-base">{thought.text}</p>
               {thought.userId === user?.uid && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => deleteThought(thought.id)}
-                  className="mt-1 text-xs font-cursive text-red-600 transition-colors duration-200 hover:text-red-700"
-                  aria-label="Delete thought"
+                  className="mt-2 text-xs font-cursive text-red-600 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors duration-200"
+                  aria-label={`Delete thought by ${thought.nickname || 'Darling'}`}
                 >
-                  Remove
-                </button>
+                  Delete
+                </motion.button>
               )}
             </div>
           </motion.div>
         ))}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -218,41 +234,45 @@ function ThoughtInput({
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="w-full max-w-2xl mx-auto p-3 bg-rose-50 border-t border-rose-300 input-container z-40"
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="w-full max-w-2xl p-4 bg-white/80 backdrop-blur-sm border-t border-rose-200 input-container z-40"
       style={{ transition: 'padding-bottom 0.3s ease' }}
     >
       <div className="flex items-center gap-3">
-        <button
-          className="p-2 transition-colors duration-200 text-rose-600 hover:text-rose-700"
-          aria-label="Attach file"
+        <motion.button
+          className="p-2 text-rose-600 hover:text-rose-700 focus:ring-2 focus:ring-rose-400 focus:outline-none transition-colors duration-200"
+          aria-label="Attach file (coming soon)"
           disabled
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M14.828 9.172a4 4 0 0 1 0 5.656l-2.829 2.829a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.828-2.829a1 1 0 0 0-1.414-1.414l-2.829 2.829a4 4 0 0 0 0 5.656 4 4 0 0 0 5.657 0l2.828-2.829a6 6 0 0 0 0-8.485 1 1 0 0 0-1.414 1.415z" />
           </svg>
-        </button>
+        </motion.button>
         <input
           ref={inputRef}
           placeholder="Share a sweet thought..."
-          className="flex-1 p-3 text-sm text-rose-600 transition-all duration-200 bg-white border border-rose-300 rounded-full font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50"
+          className="flex-1 p-3 text-sm text-rose-700 bg-rose-50 border border-rose-300 rounded-full font-cursive md:text-base focus:border-rose-500 focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all duration-200"
           value={thought}
           onChange={(e) => setThought(e.target.value)}
           maxLength={500}
           aria-label="Thought input"
         />
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => sendThought(thought, user, db)}
           disabled={isSending || !thought.trim()}
-          className={`p-2 transition-transform duration-200 transform bg-rose-400 rounded-full hover:bg-rose-500 hover:scale-105 active:scale-95 text-white ${
-            isSending || !thought.trim() ? 'opacity-50 cursor-not-allowed' : ''
+          className={`p-2 bg-rose-500 rounded-full text-white focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all duration-200 ${
+            isSending || !thought.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-600'
           }`}
           aria-label="Send thought"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            <path d="M2.01 21L23 12 2.01 3v7l15 2-15 2v7z" />
           </svg>
-        </button>
+        </motion.button>
       </div>
     </motion.div>
   );
@@ -264,16 +284,20 @@ function AuthSection({ login }: { login: () => void }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-      className="w-full max-w-md p-6 text-center bg-rose-50 border border-rose-300 rounded-lg shadow-lg"
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="w-full max-w-md p-6 text-center bg-white/80 backdrop-blur-sm border border-rose-200 rounded-xl shadow-md"
     >
-      <h2 className="mb-3 text-lg font-cursive text-rose-600 md:text-xl animate-pulse">
-        Honey Chat
+      <h2 className="mb-3 text-lg font-cursive text-rose-600 md:text-xl">
+        Welcome to Honey Chat
       </h2>
-      <p className="mb-4 text-sm text-pink-600 font-cursive md:text-base">Share your heart with us.</p>
-      <button
+      <p className="mb-4 text-sm text-rose-600 font-cursive md:text-base">
+        Share your heart with the world.
+      </p>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={login}
-        className="flex items-center justify-center gap-2 px-5 py-2 mx-auto text-sm font-cursive text-white transition-transform duration-200 transform bg-rose-400 rounded-md hover:bg-rose-500 hover:scale-105 active:scale-95 md:text-base min-w-[140px]"
+        className="flex items-center justify-center gap-2 px-5 py-2 mx-auto text-sm font-cursive text-white bg-rose-500 rounded-lg hover:bg-rose-600 focus:ring-2 focus:ring-rose-400 focus:outline-none transition-all duration-200 md:text-base min-w-[160px]"
         aria-label="Sign in with Google"
       >
         <Image
@@ -284,8 +308,8 @@ function AuthSection({ login }: { login: () => void }) {
           className="w-4 h-4"
           priority
         />
-        Join with Google
-      </button>
+        Sign in with Google
+      </motion.button>
     </motion.div>
   );
 }
@@ -316,7 +340,7 @@ export default function Page() {
     } catch (error) {
       console.error("Failed to initialize Firebase:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Error: Connection to server failed. ${errorMessage}`);
+      toast.error(`Connection failed: ${errorMessage}`);
     }
   }, []);
 
@@ -338,9 +362,9 @@ export default function Page() {
 
         const inputContainer = document.querySelector('.input-container') as HTMLElement;
         if (isKeyboardOpen && inputContainer) {
-          inputContainer.style.paddingBottom = `${keyboardHeight}px`;
+          inputContainer.style.paddingBottom = `${keyboardHeight + 16}px`;
         } else if (inputContainer) {
-          inputContainer.style.paddingBottom = '0px';
+          inputContainer.style.paddingBottom = '16px';
         }
       }, 100);
     };
@@ -357,12 +381,12 @@ export default function Page() {
 
   // Login with Google
   const login = async () => {
-    if (!auth) return toast.error("Error: Auth service offline.");
+    if (!auth) return toast.error("Auth service unavailable.");
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const currentUser = result.user;
-      if (!db) return toast.error("Error: Database offline.");
+      if (!db) return toast.error("Database unavailable.");
       const userRef = doc(db, "users", currentUser.uid);
       const userDoc = await getDoc(userRef);
 
@@ -380,21 +404,21 @@ export default function Page() {
     } catch (error) {
       console.error("Login error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Error: Access denied. ${errorMessage}`);
+      toast.error(`Login failed: ${errorMessage}`);
     }
   };
 
   // Logout
   const logout = async () => {
-    if (!auth) return toast.error("Error: Auth service offline.");
+    if (!auth) return toast.error("Auth service unavailable.");
     try {
       await signOut(auth);
       setUser(null);
-      toast.success("Goodbye, sweetheart!");
+      toast.success("See you soon, sweetheart!");
     } catch (error) {
       console.error("Logout error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Error: Logout failed. ${errorMessage}`);
+      toast.error(`Logout failed: ${errorMessage}`);
     }
   };
 
@@ -407,10 +431,10 @@ export default function Page() {
           allowedAttributes: {},
         });
         if (cleanNickname === "" || cleanNickname.length > 20 || !/^[a-zA-Z0-9_-]+$/.test(cleanNickname)) {
-          return toast.error("Error: Name must be 1-20 chars, letters, numbers, _, or -.");
+          return toast.error("Nickname must be 1-20 chars, letters, numbers, _, or -.");
         }
-        if (!user) return toast.error("Error: Must be logged in.");
-        if (!db) return toast.error("Error: Database offline.");
+        if (!user) return toast.error("Please sign in first.");
+        if (!db) return toast.error("Database unavailable.");
 
         try {
           const userRef = doc(db, "users", user.uid);
@@ -426,11 +450,11 @@ export default function Page() {
             batch.update(doc.ref, { nickname: cleanNickname });
           });
           await batch.commit();
-          toast.success("Name saved, love!");
+          toast.success("Nickname saved!");
         } catch (error) {
           console.error("Failed to save nickname", error);
           const errorMessage = error instanceof Error ? error.message : String(error);
-          toast.error(`Error: Name update failed. ${errorMessage}`);
+          toast.error(`Nickname update failed: ${errorMessage}`);
         }
       }, 500),
     []
@@ -447,12 +471,12 @@ export default function Page() {
             allowedAttributes: {},
           });
           if (cleanThought === "" || cleanThought.length > 500) {
-            toast.error("Error: Thought must be 1-500 chars.");
+            toast.error("Thought must be 1-500 characters.");
             setIsSending(false);
             return;
           }
           if (!user || !db) {
-            toast.error(user ? "Error: Database offline." : "Error: Must be logged in.");
+            toast.error(user ? "Database unavailable." : "Please sign in first.");
             setIsSending(false);
             return;
           }
@@ -473,7 +497,7 @@ export default function Page() {
           } catch (error) {
             console.error("Send thought failed:", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
-            toast.error(`Error: Send failed. ${errorMessage}`);
+            toast.error(`Send failed: ${errorMessage}`);
           } finally {
             setIsSending(false);
           }
@@ -485,16 +509,16 @@ export default function Page() {
 
   // Delete a thought
   const deleteThought = async (id: string) => {
-    if (!db) return toast.error("Error: Database offline.");
-    if (window.confirm("Remove this thought?")) {
+    if (!db) return toast.error("Database unavailable.");
+    if (window.confirm("Are you sure you want to delete this thought?")) {
       try {
         const thoughtRef = doc(db, "thoughts", id);
         await deleteDoc(thoughtRef);
-        toast.success("Thought removed!");
+        toast.success("Thought deleted!");
       } catch (error) {
         console.error("Delete failed", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        toast.error(`Error: Delete failed. ${errorMessage}`);
+        toast.error(`Delete failed: ${errorMessage}`);
       }
     }
   };
@@ -534,11 +558,9 @@ export default function Page() {
         createdAt: doc.data().createdAt || null,
       } as Thought));
       setFeed(thoughts);
-      // Defer scroll to ensure DOM is updated
       setTimeout(() => {
         if (feedRef.current) {
           const { scrollTop, scrollHeight, clientHeight } = feedRef.current;
-          // Only scroll if user is near the bottom (within 100px)
           const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
           if (isNearBottom) {
             feedRef.current.scrollTop = feedRef.current.scrollHeight;
@@ -548,7 +570,7 @@ export default function Page() {
     }, (error) => {
       console.error("Snapshot error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(`Error: Failed to load thoughts. ${errorMessage}`);
+      toast.error(`Failed to load thoughts: ${errorMessage}`);
     });
     return () => unsub();
   }, [db]);
@@ -576,22 +598,28 @@ export default function Page() {
         />
       </Head>
       <ToastContainer
-        position="top-right"
+        position="top-center"
         autoClose={3000}
         theme="light"
-        toastClassName="bg-rose-50 border border-rose-300 text-rose-600 font-cursive rounded-lg text-sm shadow-lg"
+        toastClassName="bg-rose-50 border border-rose-200 text-rose-600 font-cursive rounded-lg text-sm shadow-md"
         progressClassName="bg-rose-400"
       />
-      <div className="flex flex-col min-h-screen bg-gradient-to-b from-pink-50 to-rose-50 font-cursive">
+      <div className="flex flex-col min-h-screen bg-gradient-to-b from-rose-50 to-pink-50 font-cursive">
         <Header user={user} logout={logout} />
         <main className="flex flex-col items-center flex-1 px-4 py-6">
           {loading || !firebaseApp ? (
-            <div className="flex items-center justify-center h-40" aria-live="polite">
+            <motion.div
+              className="flex items-center justify-center h-40"
+              aria-live="polite"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <div
                 className="w-10 h-10 border-4 border-rose-400 rounded-full border-t-transparent animate-spin"
-                aria-label="Connecting to server"
+                aria-label="Loading"
               ></div>
-            </div>
+            </motion.div>
           ) : user ? (
             <>
               {!user.nickname && (
@@ -625,39 +653,24 @@ export default function Page() {
         </main>
       </div>
       <style jsx global>{`
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.05);
-            opacity: 0.9;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
         html,
         body {
           font-family: 'Parisienne', cursive;
-          background: linear-gradient(to bottom, #fef2f2, #fefce8);
+          background: linear-gradient(to bottom, #fef2f2, #fff1f2);
           color: #be123c;
           margin: 0;
           padding: 0;
           overflow-x: hidden;
-        }
-        .animate-pulse {
-          animation: pulse 2s ease-in-out infinite;
+          -webkit-font-smoothing: antialiased;
         }
         .feed-container {
-          height: calc(100vh - 200px - 60px);
-          margin-bottom: 0;
+          height: calc(100vh - 200px - 60px - env(safe-area-inset-bottom, 0));
+          overscroll-behavior: contain;
+          scroll-behavior: smooth;
         }
         .input-container {
           position: sticky;
-          bottom: 0;
+          bottom: env(safe-area-inset-bottom, 0);
           left: 0;
           right: 0;
         }
@@ -670,16 +683,13 @@ export default function Page() {
           .animate-pulse {
             animation: none;
           }
+          .motion-div, .motion-button, .motion-header {
+            transition: none !important;
+          }
         }
         @media (max-width: 640px) {
           .min-h-screen {
-            padding-bottom: 0;
-          }
-          .feed-container {
-            height: calc(100vh - 160px - 60px - env(safe-area-inset-bottom, 0));
-          }
-          .input-container {
-            bottom: env(safe-area-inset-bottom, 0);
+            padding-bottom: env(safe-area-inset-bottom, 0);
           }
         }
       `}</style>
